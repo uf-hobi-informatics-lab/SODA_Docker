@@ -1,0 +1,12 @@
+[submodule "ClinicalTransformerNER"]
+	path = ClinicalTransformerNER
+	url = https://github.com/uf-hobi-informatics-lab/ClinicalTransformerNER.git
+[submodule "ClinicalTransformerRelationExtraction"]
+	path = ClinicalTransformerRelationExtraction
+	url = https://github.com/uf-hobi-informatics-lab/ClinicalTransformerRelationExtraction.git
+[submodule "NLPreprocessing"]
+	path = NLPreprocessing
+	url = https://github.com/uf-hobi-informatics-lab/NLPreprocessing
+[submodule "ClinicalTransformerClassification"]
+	path = ClinicalTransformerClassification
+	url = https://github.com/uf-hobi-informatics-lab/ClinicalTransformerClassification.git

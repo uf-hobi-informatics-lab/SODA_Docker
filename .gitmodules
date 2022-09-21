@@ -7,3 +7,6 @@
 [submodule "ClinicalTransformerClassification"]
 	path = ClinicalTransformerClassification
 	url = https://github.com/uf-hobi-informatics-lab/ClinicalTransformerClassification.git
+[submodule "NLPreprocessing"]
+	path = NLPreprocessing
+	url = https://github.com/uf-hobi-informatics-lab/NLPreprocessing

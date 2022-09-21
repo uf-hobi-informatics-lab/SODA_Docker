@@ -1,0 +1,59 @@
+profiling_pipeline_baseline:
+  root_dir: /data/datasets/shared_data_2/pipeline_profiling_data/
+  raw_data_dir: /data/datasets/shared_data_2/pipeline_profiling_data/raw_text/
+  suffix: baseline
+  generate_bio: True
+  encoded_text: False
+  ner_model:
+    type: bert
+    path: /data/datasets/zehao/sdoh/model/SDOH_bert_final
+
+profiling_pipeline_optimized:
+  root_dir: /data/datasets/shared_data_2/pipeline_profiling_data/
+  raw_data_dir: /data/datasets/shared_data_2/pipeline_profiling_data/raw_text/
+  suffix: optimized
+  generate_bio: False
+  encoded_text: True # TODO: we can probably eliminate this flag by always checking if encoded text exist and generate it if not
+  ner_model:
+    type: bert
+    path: /data/datasets/zehao/sdoh/model/SDOH_bert_final
+
+SDoH_pipeline:
+  gpu_node: 0
+  root_dir: /data/datasets/shared_data_2/ADRD/
+  raw_data_dir: /data/datasets/Tianchen/data_from_old_server/2021/ADRD_data_from_Xi/clinical_notes_all_0826/
+  generate_bio: False
+  encoded_text: True
+  ner_model:
+    type: bert
+    path: /data/datasets/zehao/sdoh/model/SDOH_bert_final
+
+lungrads_ner_validation:
+  root_dir: /data/datasets/shared_data_2/lungrads_NER_training/
+  raw_data_dir: /data/datasets/shared_data_2/lungrads_NER_training/raw_text/
+  generate_bio: False
+  encoded_text: False
+  ner_model:
+    type: roberta
+    path: /home/jameshuang/Projects/NLP_annotation/fine_tuned_ner/mimiciii_roberta-base_10e_128b_bz=8
+  
+lungrads_ner_validation_baseline:
+  root_dir: /data/datasets/shared_data_2/lungrads_NER_training/
+  raw_data_dir: /data/datasets/shared_data_2/lungrads_NER_training/raw_text/
+  suffix: baseline
+  generate_bio: False
+  encoded_text: True
+  ner_model:
+    type: roberta
+    path: /home/jameshuang/Projects/NLP_annotation/fine_tuned_ner/mimiciii_roberta-base_10e_128b_bz=8_baseline
+
+lungrads_pipeline:
+  root_dir: /data/datasets/shared_data_2/IRB201901754_lungrads
+  raw_data_dir: /data/datasets/shared_data_2/IRB201901754_lungrads/raw_text/
+  generate_bio: False
+  encoded_text: True
+  ner_model:
+    type: roberta
+    path: /home/jameshuang/Projects/NLP_annotation/fine_tuned_ner/mimiciii_roberta-base_10e_128b_bz=8
+
+

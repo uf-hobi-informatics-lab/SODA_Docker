@@ -80,7 +80,7 @@ def gen_adrd_output_df(df):
 text_range = 100
 
 df_out_lst = []
-for counts, brat in enumerate(path_relation_brat.glob("*.ann")):
+for brat in enumerate(path_relation_brat.glob("*.ann")):
     txt = brat.parent / (brat.stem + '.txt')
     tup_relation = []
     tup_entity = []    
@@ -145,10 +145,7 @@ for counts, brat in enumerate(path_relation_brat.glob("*.ann")):
         df_out.drop(columns=[x for x in df_out.columns if ('parent_' in x) or ('context' in x) or ('i_' in x)], inplace=True)
         df_out = gen_adrd_output_df(df_out)        
         df_out['note_id'] = int(brat.stem.split('_')[0])
-        df_out_lst.append(df_out)
-        
-    if counts == 499:
-        break
+        df_out_lst.append(df_out)        
 
 df_out = pd.concat(df_out_lst).merge(meta_df, left_on='note_id', right_on='note_ID', how='left').drop(columns=['note_id'])
 df_out.to_csv(path_output_csv / 'test_output.csv', index=False)

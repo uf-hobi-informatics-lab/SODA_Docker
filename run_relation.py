@@ -1,9 +1,25 @@
+import os
 from NLPreprocessing.annotation2BIO import pre_processing, read_annotation_brat, generate_BIO
 from NLPreprocessing.text_process.sentence_tokenization import SentenceBoundaryDetection
 from collections import defaultdict
 from pathlib import Path
 from itertools import permutations
 import shutil
+import copy, argparse, yaml
+
+
+def add_subdir_to_path(p,subdir):
+    if subdir is not None:
+        return p.parent / subdir / p.name
+    else:
+        return p
+
+def get_subdir(root_path, subdir_path):
+    subdir_recursive = []
+    while subdir_path != root_path:
+        subdir_recursive.insert(0, subdir_path.name)
+        subdir_path = subdir_path.parent
+    return Path('/'.join(subdir_recursive))
 
 def create_entity_to_sent_mapping(nnsents, entities, idx2e):
     loc_ens = []
@@ -136,17 +152,44 @@ def all_in_one(*dd):
     path_tsv.mkdir(parents=True, exist_ok=True)
     
     to_tsv(data, path_tsv / "test.tsv")
-            
+
+
 if __name__ == '__main__':
     
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, required=True, help="configuration file")
+    parser.add_argument("--experiment", type=str, required=True, help="experiement to run")
+    parser.add_argument("--gpu_nodes", nargs="+", default=None, help="gpu_device_id")
+    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "lungrads_ner_validation_baseline"]
+    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "lungrads_pipeline", "--gpu_nodes", "0", "1", "2", "3"]
+    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "SDoH_pipeline", "--gpu_nodes", "0", "1", "2", "3", "4"]
+    # args = parser.parse_args(sys_args)
+    args = parser.parse_args()
+    
+    with open(Path(args.config), 'r') as f:
+        experiment_info = yaml.safe_load(f)[args.experiment]
+
     # Define data/ouput folders
-    path_root           = Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1')
-    path_encoded_text   = path_root / 'encoded_text'
+    path_root           = Path(experiment_info['root_dir'])  # DEMO USE, actual val: Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1') 
+    #path_root = Path("/home/dparedespardo/project/SDoH_pipeline_demo") #DEBUG
+    path_encoded_text   = path_root / 'encoded_text' 
     path_brat           = path_root / 'brat'
     path_tsv            = path_root / 'tsv'
     path_logs           = path_root / 'logs'
     path_brat_re        = path_root / 'brat_re'
     rel_mappings = []
+
+
+    test_roots = [x.parent for x in path_root.rglob("**/") if x.name == "encoded_text"]
+
+    if not test_roots:
+        subdirs = [None] #originally 
+    else:
+        subdirs = [get_subdir(path_root, copy.deepcopy(x)) for x in test_roots]
+
+    path_encoded_texts = [add_subdir_to_path(path_encoded_text, x) for x in subdirs]
+    #path_tsv = [add_subdir_to_path(path_tsv, x) for x in subdirs]
 
     MIMICIII_PATTERN = "\[\*\*|\*\*\]"
     EN1_START = "[s1]"  # primary entity starts
@@ -182,25 +225,31 @@ if __name__ == '__main__':
 
     # Create tsv file as dictionary
     sent_tokenizer = SentenceBoundaryDetection()
-    for counts, txt_fn in enumerate(path_encoded_text.glob("*.txt")):
-        ann_fn = path_brat / (txt_fn.stem + ".ann")
+    for dir in path_encoded_texts:
+        for counts, txt_fn in enumerate(dir.glob("*.txt")):
+            if len(path_encoded_texts) != 1:
+                path_brat = add_subdir_to_path(path_brat, dir.parent.stem) #DONT ADD IT HERE
+                path_tsv = add_subdir_to_path(path_tsv, dir.parent.stem)
+            #path_logs = add_subdir_to_path(path_logs, dir.parent.stem)
+            #path_brat_re = add_subdir_to_path(path_brat_re, dir.parent.stem)
+            ann_fn = path_brat / (txt_fn.stem + ".ann")
 
-        if not ann_fn.is_file():
-            continue
-        # TODO: The code below can be further simplified. All we need is sentence boundary, brat, and encoded text to create tsv
-        pre_txt, sents = pre_processing(txt_fn, deid_pattern=MIMICIII_PATTERN, sent_tokenizer=sent_tokenizer)
-        e2i, ens, _ = read_annotation_brat(ann_fn)
-        i2e = {v: k for k, v in e2i.items()}
-        
-        nsents, sent_bound = generate_BIO(sents, ens, file_id="", no_overlap=False, record_pos=True)
-        total_len = len(nsents)
-        nnsents = [w for sent in nsents for w in sent]
-        mappings = create_entity_to_sent_mapping(nnsents, ens, i2e)
-        
-        perm_pairs = get_permutated_relation_pairs(e2i)
-        pred = gene_neg_relation(perm_pairs, set(), mappings, ens, e2i, nnsents, nsents, sdoh_valid_comb, fid=txt_fn.stem)
-        for idx, pred_s in enumerate(pred):
-            preds[pred_s[0]].append(pred_s)
+            if not ann_fn.is_file():
+                continue
+            # TODO: The code below can be further simplified. All we need is sentence boundary, brat, and encoded text to create tsv
+            pre_txt, sents = pre_processing(txt_fn, deid_pattern=MIMICIII_PATTERN, sent_tokenizer=sent_tokenizer)
+            e2i, ens, _ = read_annotation_brat(ann_fn)
+            i2e = {v: k for k, v in e2i.items()}
+            
+            nsents, sent_bound = generate_BIO(sents, ens, file_id="", no_overlap=False, record_pos=True)
+            total_len = len(nsents)
+            nnsents = [w for sent in nsents for w in sent]
+            mappings = create_entity_to_sent_mapping(nnsents, ens, i2e)
+            
+            perm_pairs = get_permutated_relation_pairs(e2i)
+            pred = gene_neg_relation(perm_pairs, set(), mappings, ens, e2i, nnsents, nsents, sdoh_valid_comb, fid=txt_fn.stem)
+            for idx, pred_s in enumerate(pred):
+                preds[pred_s[0]].append(pred_s)
         
     # save tsv file to path_tsv
     all_in_one(preds)
@@ -209,6 +258,8 @@ if __name__ == '__main__':
     from ClinicalTransformerRelationExtraction.src.relation_extraction import argparser as relation_argparser
     from ClinicalTransformerRelationExtraction.src.relation_extraction import app as run_relation_extraction
 
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = "4"
     sys_args = {'--model_type': 'bert',
     '--data_format_mode': '0',
     '--classification_scheme': '2',

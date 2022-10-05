@@ -151,7 +151,7 @@ def run(experiment_info):
     # pr.dump_stats(log_path / f'{suffix}.profile')
 
 # Example:
-# python run_ner.py --config ./config.yml --experiment SDoH_pipeline --gpu_nodes 0 1 2 3 4
+# python run_ner.py --config ./config.yml --experiment SDoH_demo_pipeline --gpu_nodes 0 1 2 3 4
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="configuration file")

@@ -1,0 +1,10 @@
+config.yml:
+  gpu_node: 4
+  root_dir: ../SDoH_pipeline_demo
+  raw_data_dir: /data/datasets/Tianchen/data_from_old_server/2021/ADRD_data_from_Xi/clinical_notes_all_0826/
+  generate_bio: False
+  encoded_text: True
+  ner_model:
+    type: bert
+    path: /data/datasets/zehao/sdoh/model/SDOH_bert_final
+

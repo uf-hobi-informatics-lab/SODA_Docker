@@ -2,20 +2,12 @@ from pathlib import Path
 import pandas as pd
 import re, copy
 import numpy as np
-import os
+import os, argparse, yaml
 from pprint import pprint
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
-# path_relation_brat = Path('/home/alexgre/projects/from_wu_server/experiements/2020_lungrads/datasets/training')
-# path_encoded_text = Path('/home/alexgre/projects/from_wu_server/experiements/2020_lungrads/datasets/training')
-path_relation_brat = Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/brat_re')
-path_encoded_text = Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/encoded_text')
-path_report_meta = Path('/data/datasets/Tianchen/data_from_old_server/2021/ADRD_data_from_Xi/note_details_0826.csv')
-path_output_csv = Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/output_csv')
-os.makedirs(path_output_csv, exist_ok=True)
 
-meta_df = pd.read_csv(path_report_meta)
 def get_report_meta(brat):
     re_format = r'(IRB\d+)_(NOTE_\d+)_(\w+)_(IRB\d+)_(PAT_\d+)'
     irb_id, note_id, note_ver, _, pat_id = re.findall(re_format,brat.stem)[0]
@@ -79,10 +71,34 @@ def gen_adrd_output_df(df):
 
 if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, required=True, help="configuration file")
+    parser.add_argument("--experiment", type=str, required=True, help="experiement to run")
+    parser.add_argument("--gpu_nodes", nargs="+", default=None, help="gpu_device_id")
+    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "lungrads_ner_validation_baseline"]
+    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "lungrads_pipeline", "--gpu_nodes", "0", "1", "2", "3"]
+    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "SDoH_pipeline", "--gpu_nodes", "0", "1", "2", "3", "4"]
+    # args = parser.parse_args(sys_args)
+    args = parser.parse_args()
+    
+    with open(Path(args.config), 'r') as f:
+        experiment_info = yaml.safe_load(f)[args.experiment]
+
     text_range = 100
 
+    # path_relation_brat = Path('/home/alexgre/projects/from_wu_server/experiements/2020_lungrads/datasets/training')
+    # path_encoded_text = Path('/home/alexgre/projects/from_wu_server/experiements/2020_lungrads/datasets/training')
+    path_root          = Path(experiment_info['root_dir'])
+    path_relation_brat = path_root / 'brat_re' #Path('/home/dparedespardo/project/SDoH_pipeline_demo/demo_data/brat_re') #Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/brat_re')
+    path_encoded_text  = path_root / 'encoded_text' # Path('/home/dparedespardo/project/SDoH_pipeline_demo/demo_data/encoded_text') #Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/encoded_text')
+    path_report_meta   = Path('/data/datasets/Tianchen/data_from_old_server/2021/ADRD_data_from_Xi/note_details_0826.csv')
+    path_output_csv    = path_root / 'output_csv' # Path('/home/dparedespardo/project/SDoH_pipeline_demo/demo_data/output_csv') #Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/output_csv')
+    os.makedirs(path_output_csv, exist_ok=True)
+
+    meta_df = pd.read_csv(path_report_meta)
+
     df_out_lst = []
-    for brat in path_relation_brat.glob("*.ann"):
+    for counts, brat in enumerate(path_relation_brat.glob("*.ann")):
         txt = brat.parent / (brat.stem + '.txt')
         tup_relation = []
         tup_entity = []    
@@ -147,7 +163,7 @@ if __name__ == '__main__':
             df_out.drop(columns=[x for x in df_out.columns if ('parent_' in x) or ('context' in x) or ('i_' in x)], inplace=True)
             df_out = gen_adrd_output_df(df_out)        
             df_out['note_id'] = int(brat.stem.split('_')[0])
-            df_out_lst.append(df_out)        
+            df_out_lst.append(df_out)
 
     df_out = pd.concat(df_out_lst).merge(meta_df, left_on='note_id', right_on='note_ID', how='left').drop(columns=['note_id'])
     df_out.to_csv(path_output_csv / 'test_output.csv', index=False)

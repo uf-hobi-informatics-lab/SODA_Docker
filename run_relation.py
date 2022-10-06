@@ -136,7 +136,12 @@ def all_in_one(*dd):
     path_tsv.mkdir(parents=True, exist_ok=True)
     
     to_tsv(data, path_tsv / "test.tsv")
-            
+
+def file_loader(batch_sz):
+    file_lst = list(path_encoded_text.glob("*.txt"))
+    for i in range(0, batch_sz, len(file_lst)):
+        yield file_lst[i:min(i + batch_sz, len(file_lst))]    
+
 if __name__ == '__main__':
     
     # Define data/ouput folders
@@ -182,61 +187,63 @@ if __name__ == '__main__':
 
     # Create tsv file as dictionary
     sent_tokenizer = SentenceBoundaryDetection()
-    for counts, txt_fn in enumerate(path_encoded_text.glob("*.txt")):
-        ann_fn = path_brat / (txt_fn.stem + ".ann")
+    batch_sz=1e4
+    for batch in file_loader(batch_sz):
+        for counts, txt_fn in enumerate(path_encoded_text.glob("*.txt")):
+            ann_fn = path_brat / (txt_fn.stem + ".ann")
 
-        if not ann_fn.is_file():
-            continue
-        # TODO: The code below can be further simplified. All we need is sentence boundary, brat, and encoded text to create tsv
-        pre_txt, sents = pre_processing(txt_fn, deid_pattern=MIMICIII_PATTERN, sent_tokenizer=sent_tokenizer)
-        e2i, ens, _ = read_annotation_brat(ann_fn)
-        i2e = {v: k for k, v in e2i.items()}
-        
-        nsents, sent_bound = generate_BIO(sents, ens, file_id="", no_overlap=False, record_pos=True)
-        total_len = len(nsents)
-        nnsents = [w for sent in nsents for w in sent]
-        mappings = create_entity_to_sent_mapping(nnsents, ens, i2e)
-        
-        perm_pairs = get_permutated_relation_pairs(e2i)
-        pred = gene_neg_relation(perm_pairs, set(), mappings, ens, e2i, nnsents, nsents, sdoh_valid_comb, fid=txt_fn.stem)
-        for idx, pred_s in enumerate(pred):
-            preds[pred_s[0]].append(pred_s)
-        
-    # save tsv file to path_tsv
-    all_in_one(preds)
+            if not ann_fn.is_file():
+                continue
+            # TODO: The code below can be further simplified. All we need is sentence boundary, brat, and encoded text to create tsv
+            pre_txt, sents = pre_processing(txt_fn, deid_pattern=MIMICIII_PATTERN, sent_tokenizer=sent_tokenizer)
+            e2i, ens, _ = read_annotation_brat(ann_fn)
+            i2e = {v: k for k, v in e2i.items()}
+            
+            nsents, sent_bound = generate_BIO(sents, ens, file_id="", no_overlap=False, record_pos=True)
+            total_len = len(nsents)
+            nnsents = [w for sent in nsents for w in sent]
+            mappings = create_entity_to_sent_mapping(nnsents, ens, i2e)
+            
+            perm_pairs = get_permutated_relation_pairs(e2i)
+            pred = gene_neg_relation(perm_pairs, set(), mappings, ens, e2i, nnsents, nsents, sdoh_valid_comb, fid=txt_fn.stem)
+            for idx, pred_s in enumerate(pred):
+                preds[pred_s[0]].append(pred_s)
+            
+        # save tsv file to path_tsv
+        all_in_one(preds)
 
-    # Run relation extraction
-    from ClinicalTransformerRelationExtraction.src.relation_extraction import argparser as relation_argparser
-    from ClinicalTransformerRelationExtraction.src.relation_extraction import app as run_relation_extraction
+        # Run relation extraction
+        from ClinicalTransformerRelationExtraction.src.relation_extraction import argparser as relation_argparser
+        from ClinicalTransformerRelationExtraction.src.relation_extraction import app as run_relation_extraction
 
-    sys_args = {'--model_type': 'bert',
-    '--data_format_mode': '0',
-    '--classification_scheme': '2',
-    '--pretrained_model': 'bert-large',
-    '--data_dir': str(path_tsv),
-    '--new_model_dir': '/data/datasets/zehao/sdoh/relations_model/bert',
-    '--predict_output_file': str(path_tsv / 'predictions.txt'),
-    '--overwrite_model_dir': None,
-    '--seed': '13',
-    '--max_seq_length': '512',
-    '--num_core': '10',
-    '--cache_data': None,
-    '--do_predict': None,
-    '--do_lower_case': None,
-    '--train_batch_size': '4',
-    '--eval_batch_size': '4',
-    '--learning_rate': '1e-5',
-    '--num_train_epochs': '3',
-    '--gradient_accumulation_steps': '1',
-    '--do_warmup': None,
-    '--warmup_ratio': '0.1',
-    '--weight_decay': '0',
-    '--max_num_checkpoints': '0',
-    '--log_file': str(path_logs / 'log_re.txt')}
-    sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
+        sys_args = {'--model_type': 'bert',
+        '--data_format_mode': '0',
+        '--classification_scheme': '2',
+        '--pretrained_model': 'bert-large',
+        '--data_dir': str(path_tsv),
+        '--new_model_dir': '/data/datasets/zehao/sdoh/relations_model/bert',
+        '--predict_output_file': str(path_tsv / 'predictions.txt'),
+        '--overwrite_model_dir': None,
+        '--seed': '13',
+        '--max_seq_length': '512',
+        '--num_core': '10',
+        '--cache_data': None,
+        '--do_predict': None,
+        '--do_lower_case': None,
+        '--train_batch_size': '4',
+        '--eval_batch_size': '4',
+        '--learning_rate': '1e-5',
+        '--num_train_epochs': '3',
+        '--gradient_accumulation_steps': '1',
+        '--do_warmup': None,
+        '--warmup_ratio': '0.1',
+        '--weight_decay': '0',
+        '--max_num_checkpoints': '0',
+        '--log_file': str(path_logs / 'log_re.txt')}
+        sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
 
-    args = relation_argparser(sys_args)
-    run_relation_extraction(args)
+        args = relation_argparser(sys_args)
+        run_relation_extraction(args)
 
     # Update brat
     from ClinicalTransformerRelationExtraction.src.data_processing.post_processing import argparser as post_processing_argparser
@@ -247,7 +254,8 @@ if __name__ == '__main__':
     '--entity_data_dir': str(path_brat),
     '--test_data_file': str(path_tsv / 'test.tsv'),
     '--brat_result_output_dir': str(path_brat_re),
-    '--log_file': str(path_logs / 'log_re.txt')}
+    '--log_file': str(path_logs / 'log_re.txt'),
+    '--attach_result': None}
 
     sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
 

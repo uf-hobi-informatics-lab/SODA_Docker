@@ -82,7 +82,7 @@ def gene_neg_relation(perm_pairs, true_pairs, mappings, ens, e2i, nnsents, nsent
         
         if sent_diff <= CUTOFF:
             check_tags(fs1, fs2)
-            assert (en1t, en2t) in valid_comb, f"{en1t} {en2t}"
+            assert (en1t, en2t) in valid_comb, "{} {}".format(en1t, en2t)
             if fid:
                 neg_samples.append((sent_diff, NEG_REL, fs1, fs2, en1t, en2t, enid1, enid2, fid))
             else:
@@ -116,8 +116,8 @@ def format_relen(en, rloc, nsents):
     return sn1, sn2, fs, ors
 
 def check_tags(s1, s2):
-    assert EN1_START in s1 and EN1_END in s1, f"tag error: {s1}"
-    assert EN2_START in s2 and EN2_END in s2, f"tag error: {s2}"
+    assert EN1_START in s1 and EN1_END in s1, "tag error: {}".format(s1)
+    assert EN2_START in s2 and EN2_END in s2, "tag error: {}".format(s2)
 
 # TODO: wtire everything all at once
 def to_tsv(data, fn):
@@ -181,12 +181,14 @@ if __name__ == '__main__':
     preds = defaultdict(list)
 
     # Create tsv file as dictionary
+    counts = 0
     sent_tokenizer = SentenceBoundaryDetection()
     for counts, txt_fn in enumerate(path_encoded_text.glob("*.txt")):
         ann_fn = path_brat / (txt_fn.stem + ".ann")
 
         if not ann_fn.is_file():
             continue
+        counts += 1
         # TODO: The code below can be further simplified. All we need is sentence boundary, brat, and encoded text to create tsv
         pre_txt, sents = pre_processing(txt_fn, deid_pattern=MIMICIII_PATTERN, sent_tokenizer=sent_tokenizer)
         e2i, ens, _ = read_annotation_brat(ann_fn)
@@ -201,6 +203,8 @@ if __name__ == '__main__':
         pred = gene_neg_relation(perm_pairs, set(), mappings, ens, e2i, nnsents, nsents, sdoh_valid_comb, fid=txt_fn.stem)
         for idx, pred_s in enumerate(pred):
             preds[pred_s[0]].append(pred_s)
+        if counts == 500:
+            break
         
     # save tsv file to path_tsv
     all_in_one(preds)

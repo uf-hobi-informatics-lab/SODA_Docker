@@ -1,0 +1,43 @@
+lungrads_pipeline:
+  dependency_tree:
+    - ['output', brat_postproc]
+    - ['brat_postproc', meta]
+    - ['brat_postproc', brat]
+    - ['brat_postproc', brat_re]
+    - ['brat_postproc', brat_neg]
+    - ['brat_re','tsv']
+    - ['brat_neg','tsv']
+    - ['tsv','brat']
+    - ['tsv','sent_bounds']
+    - ['tsv','encoded_text']
+    - ['brat','bio_init']
+    - ['bio_init', 'encoded_text']
+    - ['bio_init', 'raw_text']
+  root_dir: /data/datasets/shared_data_2/IRB201901754_lungrads
+  raw_data_dir: /data/datasets/shared_data_2/IRB201901754_lungrads/raw_text/
+  # TODO: specify model parameters here
+  sent_tokenizer:
+    _class: SentenceBoundaryDetection
+    params:
+      deid_pattern: \[\*\*|\*\*\]
+  ner_model:
+    _class:
+    params:
+        model_type: roberta
+        pretrained_model: /home/jameshuang/Projects/NLP_annotation/fine_tuned_ner/mimiciii_roberta-base_10e_128b_bz=8
+        do_lower_case: True
+        eval_batch_size: 8
+        max_seq_length: 128
+        data_has_offset_information: True
+        use_bio: False
+  negation_model:
+    _class:
+    params:
+        type: bert-base
+        path:
+  relation_model:
+    _class:
+    params:
+        type: 
+        path: /home/
+  

@@ -1,4 +1,11 @@
 # Social Determinants of Health pipeline execution:
+## Setting up this repository
+After cloning the repository, please run the following commands:
+```
+git checkout SDoH_pipeline
+git submodule init
+git submodule update
+```
 ## Needed files and folder structure:
 1. encoded_text folder:
    * This folder will contain the relevant text files to be run through the pipeline in plain text format. The location of this folder must be under the root directory specified in the `config.yml` file. 

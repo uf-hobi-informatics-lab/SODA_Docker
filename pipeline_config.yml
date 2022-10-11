@@ -1,20 +1,23 @@
 lungrads_pipeline:
   dependency_tree:
-    - ['output', brat_postproc]
-    - ['brat_postproc', meta]
-    - ['brat_postproc', brat]
-    - ['brat_postproc', brat_re]
-    - ['brat_postproc', brat_neg]
-    - ['brat_re','tsv']
-    - ['brat_neg','tsv']
-    - ['tsv','brat']
-    - ['tsv','sent_bounds']
-    - ['tsv','encoded_text']
-    - ['brat','bio_init']
-    - ['bio_init', 'encoded_text']
-    - ['bio_init', 'raw_text']
-  root_dir: /data/datasets/shared_data_2/IRB201901754_lungrads
-  raw_data_dir: /data/datasets/shared_data_2/IRB201901754_lungrads/raw_text/
+    - [csv_output, brat_postproc]
+    - [brat_postproc, meta]
+    - [brat_postproc, brat]
+    - [brat_postproc, brat_re]
+    - [brat_postproc, brat_neg]
+    - [brat_re,tsv]
+    - [brat_neg,tsv]
+    - [tsv,brat]
+    - [tsv,bio_init]
+    - [tsv,encoded_text]
+    - [brat,bio_init]
+    - [brat,encoded_text]
+    - [bio_init, encoded_text]
+    - [bio_init, raw_text]
+    - [encoded_text, raw_text]
+  # root_dir: /data/datasets/shared_data_2/IRB201901754_lungrads
+  root_dir: /data/datasets/shared_data_2/pipeline_dev_test
+  raw_data_dir: /data/datasets/shared_data_2/pipeline_dev_test/raw_text/
   # TODO: specify model parameters here
   sent_tokenizer:
     _class: SentenceBoundaryDetection

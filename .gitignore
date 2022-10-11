@@ -1,2 +1,7 @@
 __pycache__/
 SDoH_pipeline_demo/encoded_text/
+SDoH_pipeline_demo/brat/
+SDoH_pipeline_demo/brat_re/
+SDoH_pipeline_demo/tsv/
+SDoH_pipeline_demo/output_csv/
+SDoH_pipeline_demo/logs/

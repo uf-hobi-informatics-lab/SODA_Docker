@@ -153,6 +153,11 @@ def all_in_one(*dd):
     
     to_tsv(data, path_tsv / "test.tsv")
 
+def file_loader(batch_sz):
+    file_lst = list(path_encoded_text.glob("*.txt"))
+    for i in range(0, len(file_lst), batch_sz):
+        yield file_lst[i:min(i + batch_sz, len(file_lst))]    
+
 
 if __name__ == '__main__':
     
@@ -225,13 +230,9 @@ if __name__ == '__main__':
 
     # Create tsv file as dictionary
     sent_tokenizer = SentenceBoundaryDetection()
-    for dir in path_encoded_texts:
-        for counts, txt_fn in enumerate(dir.glob("*.txt")):
-            if len(path_encoded_texts) != 1:
-                path_brat = add_subdir_to_path(path_brat, dir.parent.stem) #DONT ADD IT HERE
-                path_tsv = add_subdir_to_path(path_tsv, dir.parent.stem)
-            #path_logs = add_subdir_to_path(path_logs, dir.parent.stem)
-            #path_brat_re = add_subdir_to_path(path_brat_re, dir.parent.stem)
+    batch_sz=10
+    for batch in file_loader(batch_sz):
+        for txt_fn in batch:
             ann_fn = path_brat / (txt_fn.stem + ".ann")
 
             if not ann_fn.is_file():
@@ -251,43 +252,44 @@ if __name__ == '__main__':
             for idx, pred_s in enumerate(pred):
                 preds[pred_s[0]].append(pred_s)
         
-    # save tsv file to path_tsv
-    all_in_one(preds)
+        # save tsv file to path_tsv
+        all_in_one(preds)
 
-    # Run relation extraction
-    from ClinicalTransformerRelationExtraction.src.relation_extraction import argparser as relation_argparser
-    from ClinicalTransformerRelationExtraction.src.relation_extraction import app as run_relation_extraction
+        # Run relation extraction
+        from ClinicalTransformerRelationExtraction.src.relation_extraction import argparser as relation_argparser
+        from ClinicalTransformerRelationExtraction.src.relation_extraction import app as run_relation_extraction
 
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "4"
-    sys_args = {'--model_type': 'bert',
-    '--data_format_mode': '0',
-    '--classification_scheme': '2',
-    '--pretrained_model': 'bert-large',
-    '--data_dir': str(path_tsv),
-    '--new_model_dir': '/data/datasets/zehao/sdoh/relations_model/bert',
-    '--predict_output_file': str(path_tsv / 'predictions.txt'),
-    '--overwrite_model_dir': None,
-    '--seed': '13',
-    '--max_seq_length': '512',
-    '--num_core': '10',
-    '--cache_data': None,
-    '--do_predict': None,
-    '--do_lower_case': None,
-    '--train_batch_size': '4',
-    '--eval_batch_size': '4',
-    '--learning_rate': '1e-5',
-    '--num_train_epochs': '3',
-    '--gradient_accumulation_steps': '1',
-    '--do_warmup': None,
-    '--warmup_ratio': '0.1',
-    '--weight_decay': '0',
-    '--max_num_checkpoints': '0',
-    '--log_file': str(path_logs / 'log_re.txt')}
-    sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
+        os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+        sys_args = {'--model_type': 'bert',
+        '--data_format_mode': '0',
+        '--classification_scheme': '2',
+        '--pretrained_model': 'bert-large',
+        '--data_dir': str(path_tsv),
+        '--new_model_dir': '/data/datasets/zehao/sdoh/relations_model/bert',
+        '--predict_output_file': str(path_tsv / 'predictions.txt'),
+        '--overwrite_model_dir': None,
+        '--seed': '13',
+        '--max_seq_length': '512',
+        '--num_core': '10',
+        '--cache_data': None,
+        '--do_predict': None,
+        '--do_lower_case': None,
+        '--train_batch_size': '4',
+        '--eval_batch_size': '4',
+        '--learning_rate': '1e-5',
+        '--num_train_epochs': '3',
+        '--gradient_accumulation_steps': '1',
+        '--do_warmup': None,
+        '--warmup_ratio': '0.1',
+        '--weight_decay': '0',
+        '--max_num_checkpoints': '0',
+        '--log_file': str(path_logs / 'log_re.txt'),
+        '--attach_result': None}
+        sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
 
-    args = relation_argparser(sys_args)
-    run_relation_extraction(args)
+        args = relation_argparser(sys_args)
+        run_relation_extraction(args)
 
     # Update brat
     from ClinicalTransformerRelationExtraction.src.data_processing.post_processing import argparser as post_processing_argparser

@@ -139,7 +139,7 @@ def all_in_one(*dd):
 
 def file_loader(batch_sz):
     file_lst = list(path_encoded_text.glob("*.txt"))
-    for i in range(0, batch_sz, len(file_lst)):
+    for i in range(0, len(file_lst), batch_sz):
         yield file_lst[i:min(i + batch_sz, len(file_lst))]    
 
 if __name__ == '__main__':
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     sent_tokenizer = SentenceBoundaryDetection()
     batch_sz=1e4
     for batch in file_loader(batch_sz):
-        for counts, txt_fn in enumerate(path_encoded_text.glob("*.txt")):
+        for txt_fn in batch:
             ann_fn = path_brat / (txt_fn.stem + ".ann")
 
             if not ann_fn.is_file():
@@ -239,7 +239,8 @@ if __name__ == '__main__':
         '--warmup_ratio': '0.1',
         '--weight_decay': '0',
         '--max_num_checkpoints': '0',
-        '--log_file': str(path_logs / 'log_re.txt')}
+        '--log_file': str(path_logs / 'log_re.txt'),
+        '--attach_result': None}
         sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
 
         args = relation_argparser(sys_args)
@@ -254,8 +255,7 @@ if __name__ == '__main__':
     '--entity_data_dir': str(path_brat),
     '--test_data_file': str(path_tsv / 'test.tsv'),
     '--brat_result_output_dir': str(path_brat_re),
-    '--log_file': str(path_logs / 'log_re.txt'),
-    '--attach_result': None}
+    '--log_file': str(path_logs / 'log_re.txt')}
 
     sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
 

@@ -145,7 +145,8 @@ def file_loader(batch_sz):
 if __name__ == '__main__':
     
     # Define data/ouput folders
-    path_root           = Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1')
+    path_root = Path('SDoH_pipeline_demo/')
+    #path_root           = Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1')
     path_encoded_text   = path_root / 'encoded_text'
     path_brat           = path_root / 'brat'
     path_tsv            = path_root / 'tsv'
@@ -183,12 +184,13 @@ if __name__ == '__main__':
             ('Race', 'Sdoh_status'), ('Ethnicity', 'Sdoh_status'),
             ('Living_Condition', 'Sdoh_status')
         }               # Allowed relation (i.e., entity category pair)
-    preds = defaultdict(list)
+    
 
     # Create tsv file as dictionary
     sent_tokenizer = SentenceBoundaryDetection()
-    batch_sz=1e4
+    batch_sz=5
     for batch in file_loader(batch_sz):
+        preds = defaultdict(list)
         for txt_fn in batch:
             ann_fn = path_brat / (txt_fn.stem + ".ann")
 
@@ -239,25 +241,25 @@ if __name__ == '__main__':
         '--warmup_ratio': '0.1',
         '--weight_decay': '0',
         '--max_num_checkpoints': '0',
-        '--log_file': str(path_logs / 'log_re.txt'),
-        '--attach_result': None}
+        '--log_file': str(path_logs / 'log_re.txt')}
+        #'--attach_result': None}
         sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
 
         args = relation_argparser(sys_args)
         run_relation_extraction(args)
 
-    # Update brat
-    from ClinicalTransformerRelationExtraction.src.data_processing.post_processing import argparser as post_processing_argparser
-    from ClinicalTransformerRelationExtraction.src.data_processing.post_processing import app as run_post_processing
+        # Update brat
+        from ClinicalTransformerRelationExtraction.src.data_processing.post_processing import argparser as post_processing_argparser
+        from ClinicalTransformerRelationExtraction.src.data_processing.post_processing import app as run_post_processing
 
-    sys_args = {'--mode': 'mul',
-    '--predict_result_file': str(path_tsv / 'predictions.txt'),
-    '--entity_data_dir': str(path_brat),
-    '--test_data_file': str(path_tsv / 'test.tsv'),
-    '--brat_result_output_dir': str(path_brat_re),
-    '--log_file': str(path_logs / 'log_re.txt')}
+        sys_args = {'--mode': 'mul',
+        '--predict_result_file': str(path_tsv / 'predictions.txt'),
+        '--entity_data_dir': str(path_brat),
+        '--test_data_file': str(path_tsv / 'test.tsv'),
+        '--brat_result_output_dir': str(path_brat_re),
+        '--log_file': str(path_logs / 'log_re.txt')}
 
-    sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
+        sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
 
-    args = post_processing_argparser(sys_args)
-    run_post_processing(args)
+        args = post_processing_argparser(sys_args)
+        run_post_processing(args)

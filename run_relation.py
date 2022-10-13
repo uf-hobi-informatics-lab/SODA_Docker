@@ -3,7 +3,7 @@ from NLPreprocessing.text_process.sentence_tokenization import SentenceBoundaryD
 from collections import defaultdict
 from pathlib import Path
 from itertools import permutations
-import shutil
+import shutil, yaml, argparse, os
 
 def create_entity_to_sent_mapping(nnsents, entities, idx2e):
     loc_ens = []
@@ -144,6 +144,21 @@ def file_loader(batch_sz):
 
 if __name__ == '__main__':
     
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, required=True, help="configuration file")
+    parser.add_argument("--experiment", type=str, required=True, help="experiement to run")
+    parser.add_argument("--gpu_nodes", nargs="+", default=None, help="gpu_device_id")
+    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "lungrads_ner_validation_baseline"]
+    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "lungrads_pipeline", "--gpu_nodes", "0", "1", "2", "3"]
+    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "SDoH_pipeline", "--gpu_nodes", "0", "1", "2", "3", "4"]
+    # args = parser.parse_args(sys_args)
+    args = parser.parse_args()
+    
+    with open(Path(args.config), 'r') as f:
+        experiment_info = yaml.safe_load(f)[args.experiment]
+    experiment_info['gpu_nodes'] = args.gpu_nodes
+
     # Define data/ouput folders
     path_root = Path('SDoH_pipeline_demo/')
     #path_root           = Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1')
@@ -218,10 +233,12 @@ if __name__ == '__main__':
         from ClinicalTransformerRelationExtraction.src.relation_extraction import argparser as relation_argparser
         from ClinicalTransformerRelationExtraction.src.relation_extraction import app as run_relation_extraction
 
-        sys_args = {'--model_type': 'bert',
+
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(experiment_info['gpu_node'])
+        sys_args = {'--model_type': experiment_info['ner_model'].get('type'),
         '--data_format_mode': '0',
         '--classification_scheme': '2',
-        '--pretrained_model': 'bert-large',
+        '--pretrained_model': experiment_info['ner_model'].get('path'),
         '--data_dir': str(path_tsv),
         '--new_model_dir': '/data/datasets/zehao/sdoh/relations_model/bert',
         '--predict_output_file': str(path_tsv / 'predictions.txt'),

@@ -158,7 +158,6 @@ def file_loader(batch_sz):
     for i in range(0, len(file_lst), batch_sz):
         yield file_lst[i:min(i + batch_sz, len(file_lst))]    
 
-
 if __name__ == '__main__':
     
     
@@ -174,11 +173,13 @@ if __name__ == '__main__':
     
     with open(Path(args.config), 'r') as f:
         experiment_info = yaml.safe_load(f)[args.experiment]
+    experiment_info['gpu_nodes'] = args.gpu_nodes
 
     # Define data/ouput folders
-    path_root           = Path(experiment_info['root_dir'])  # DEMO USE, actual val: Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1') 
-    #path_root = Path("/home/dparedespardo/project/SDoH_pipeline_demo") #DEBUG
-    path_encoded_text   = path_root / 'encoded_text' 
+    path_root           = Path(experiment_info['root_dir'])
+    #path_root = Path('SDoH_pipeline_demo/')
+    #path_root           = Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1')
+    path_encoded_text   = path_root / 'encoded_text'
     path_brat           = path_root / 'brat'
     path_tsv            = path_root / 'tsv'
     path_logs           = path_root / 'logs'
@@ -226,12 +227,13 @@ if __name__ == '__main__':
             ('Race', 'Sdoh_status'), ('Ethnicity', 'Sdoh_status'),
             ('Living_Condition', 'Sdoh_status')
         }               # Allowed relation (i.e., entity category pair)
-    preds = defaultdict(list)
+    
 
     # Create tsv file as dictionary
     sent_tokenizer = SentenceBoundaryDetection()
-    batch_sz=10
+    batch_sz=5
     for batch in file_loader(batch_sz):
+        preds = defaultdict(list)
         for txt_fn in batch:
             ann_fn = path_brat / (txt_fn.stem + ".ann")
 
@@ -251,7 +253,7 @@ if __name__ == '__main__':
             pred = gene_neg_relation(perm_pairs, set(), mappings, ens, e2i, nnsents, nsents, sdoh_valid_comb, fid=txt_fn.stem)
             for idx, pred_s in enumerate(pred):
                 preds[pred_s[0]].append(pred_s)
-        
+            
         # save tsv file to path_tsv
         all_in_one(preds)
 
@@ -260,11 +262,11 @@ if __name__ == '__main__':
         from ClinicalTransformerRelationExtraction.src.relation_extraction import app as run_relation_extraction
 
 
-        os.environ["CUDA_VISIBLE_DEVICES"] = "4"
-        sys_args = {'--model_type': 'bert',
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(experiment_info['gpu_node'])
+        sys_args = {'--model_type': experiment_info['ner_model'].get('type'),
         '--data_format_mode': '0',
         '--classification_scheme': '2',
-        '--pretrained_model': 'bert-large',
+        '--pretrained_model': experiment_info['ner_model'].get('path'),
         '--data_dir': str(path_tsv),
         '--new_model_dir': '/data/datasets/zehao/sdoh/relations_model/bert',
         '--predict_output_file': str(path_tsv / 'predictions.txt'),
@@ -272,7 +274,6 @@ if __name__ == '__main__':
         '--seed': '13',
         '--max_seq_length': '512',
         '--num_core': '10',
-        '--cache_data': None,
         '--do_predict': None,
         '--do_lower_case': None,
         '--train_batch_size': '4',
@@ -284,25 +285,30 @@ if __name__ == '__main__':
         '--warmup_ratio': '0.1',
         '--weight_decay': '0',
         '--max_num_checkpoints': '0',
-        '--log_file': str(path_logs / 'log_re.txt'),
-        '--attach_result': None}
+        '--log_file': str(path_logs / 'log_re.txt')}
+        #'--attach_result': None}
         sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
 
         args = relation_argparser(sys_args)
         run_relation_extraction(args)
 
-    # Update brat
-    from ClinicalTransformerRelationExtraction.src.data_processing.post_processing import argparser as post_processing_argparser
-    from ClinicalTransformerRelationExtraction.src.data_processing.post_processing import app as run_post_processing
+        # Update brat
+        from ClinicalTransformerRelationExtraction.src.data_processing.post_processing import argparser as post_processing_argparser
+        from ClinicalTransformerRelationExtraction.src.data_processing.post_processing import app as run_post_processing
 
-    sys_args = {'--mode': 'mul',
-    '--predict_result_file': str(path_tsv / 'predictions.txt'),
-    '--entity_data_dir': str(path_brat),
-    '--test_data_file': str(path_tsv / 'test.tsv'),
-    '--brat_result_output_dir': str(path_brat_re),
-    '--log_file': str(path_logs / 'log_re.txt')}
+        sys_args = {'--mode': 'mul',
+        '--predict_result_file': str(path_tsv / 'predictions.txt'),
+        '--entity_data_dir': str(path_brat),
+        '--test_data_file': str(path_tsv / 'test.tsv'),
+        '--brat_result_output_dir': str(path_brat_re),
+        '--log_file': str(path_logs / 'log_re.txt'),
+        '--copy_ann': False}
 
-    sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
+        sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
 
-    args = post_processing_argparser(sys_args)
-    run_post_processing(args)
+        args = post_processing_argparser(sys_args)
+        run_post_processing(args)
+
+    for stem in set([x.stem for x in path_brat.glob("*.ann")]) - set([x.stem for x in path_brat_re.glob("*.ann")]):
+        
+        shutil.copy(path_brat / (stem + '.ann'), path_brat_re / (stem + '.ann'))

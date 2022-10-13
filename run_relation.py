@@ -229,7 +229,6 @@ if __name__ == '__main__':
         '--seed': '13',
         '--max_seq_length': '512',
         '--num_core': '10',
-        '--cache_data': None,
         '--do_predict': None,
         '--do_lower_case': None,
         '--train_batch_size': '4',
@@ -257,9 +256,14 @@ if __name__ == '__main__':
         '--entity_data_dir': str(path_brat),
         '--test_data_file': str(path_tsv / 'test.tsv'),
         '--brat_result_output_dir': str(path_brat_re),
-        '--log_file': str(path_logs / 'log_re.txt')}
+        '--log_file': str(path_logs / 'log_re.txt'),
+        '--copy_ann': False}
 
         sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
 
         args = post_processing_argparser(sys_args)
         run_post_processing(args)
+
+    for stem in set([x.stem for x in path_brat.glob("*.ann")]) - set([x.stem for x in path_brat_re.glob("*.ann")]):
+        
+        shutil.copy(path_brat / (stem + '.ann'), path_brat_re / (stem + '.ann'))

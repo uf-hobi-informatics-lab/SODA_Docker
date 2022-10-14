@@ -194,6 +194,7 @@ class BatchProcessor(object):
                         str(self._root_dir / 'brat'),
                         "{}\t{} {} {}\t{}", False, labeled_bio_tup_lst=labeled_bio, write_output=True, use_bio=False, return_dict=self.brat)
 
+#   --brat_result_output_dir $final_brat_output_with_NER_RE
     def get_result(self, result, batch_files):
         
         _exist = self.load_result(result, batch_files) 

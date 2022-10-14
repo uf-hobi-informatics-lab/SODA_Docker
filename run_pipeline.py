@@ -5,6 +5,7 @@ from NLPreprocessing.text_process.sentence_tokenization import SentenceBoundaryD
 from ClinicalTransformerNER.src.transformer_ner.transfomer_log import TransformerNERLogger
 from ClinicalTransformerNER.src.common_utils.output_format_converter import bio2output as format_converter
 from ClinicalTransformerNER.src.run_transformer_batch_prediction import main as run_ner
+from ClinicalTransformerRelationExtraction.src.relation_extraction import app as run_relation_extraction
 MIMICIII_PATTERN = "\[\*\*|\*\*\]"
 import torch.multiprocessing as mp
 import unicodedata, os, ftfy
@@ -17,7 +18,7 @@ from argparse import Namespace
 
 # , note_mod_idx, root_dir=None, gpu_node=0, result='output'
 
-OUTPUT_DIR = ['raw_text', 'encoded_text', 'bio_init', 'brat', 'tsv', 'brat_neg', 'brat_re', 'meta', 'brat_postproc', 'csv_output', 'logs']
+OUTPUT_DIR = ['raw_text', 'encoded_text', 'bio_init', 'brat', 'tsv', 'brat_re', 'brat_neg', 'meta', 'brat_postproc', 'csv_output']
 
 # TODO: notes in subdirectories
 class BatchProcessor(object):
@@ -129,10 +130,10 @@ class BatchProcessor(object):
     def read_bio_init(self, ifn):
         
         def word_formatting(x):
-            # if len(x) == 5:  # TODO: not sure if it capture all the corner cases
-            #     x.insert(0, '\xa0')
-            # elif len(x) != 6:
-            #     raise NotImplementedError()
+            if len(x) == 5:  # TODO: not sure if it capture all the corner cases
+                x.insert(0, '\xa0')
+            elif len(x) != 6:
+                raise NotImplementedError()
             return [x[0], (int(x[1]), int(x[2])), (int(x[3]), int(x[4])), x[5]]
         
         with open(ifn, "r") as f:
@@ -149,6 +150,11 @@ class BatchProcessor(object):
     def read_brat(self, ifn):
         return read_annotation_brat(ifn, include_id=True)[1]
 
+    def read_tsv(self, ifn):
+        with open(ifn, "r", encoding="utf-8") as f:
+            lines = f.readlines()[1:]
+            return [tuple(line.split("\t")[:-1]) for line in lines]
+        
     def get_encoded_text(self, batch_files):
         (self._root_dir / 'encoded_text').mkdir(parents=True, exist_ok=True)
         
@@ -193,6 +199,50 @@ class BatchProcessor(object):
                         str(self._root_dir / 'encoded_text'),
                         str(self._root_dir / 'brat'),
                         "{}\t{} {} {}\t{}", False, labeled_bio_tup_lst=labeled_bio, write_output=True, use_bio=False, return_dict=self.brat)
+
+    def get_tsv(self, batch_files):
+        
+        def to_tsv(data, fn):
+            full_text = ["\t".join([str(i+1) for i in range(len(data[0]))])]
+            for each in data:
+                full_text.append("\t".join([str(e) for e in each]))
+            with open(fn, "w") as f:
+                f.write("\n".join(full_text))
+
+        (self._root_dir / 'tsv').mkdir(parents=True, exist_ok=True)
+        # ann_id, t_type, offset_s, offset_e, entity_words
+        CUTOFF      = self.relation_model_params['params']['CUTOFF']
+        EN1_START   = self.relation_model_params['params']['EN1_START']
+        EN1_END     = self.relation_model_params['params']['EN1_END']
+        EN2_START   = self.relation_model_params['params']['EN2_START']
+        EN2_END     = self.relation_model_params['params']['EN2_END']
+        NEG_REL     = self.relation_model_params['params']['NEG_REL']
+        
+        valid_comb = [tuple(x) for x in self.relation_model_params['params']['valid_comb']]
+        
+        for file in batch_files:
+            
+            _brat = copy.deepcopy(self.brat[file.stem])
+            _brat = {x[0]: (x + (next((i for i, b in enumerate(self.sent_bounds[file.stem]) if (x[2] >= b[0] and x[3] <= b[0]))),)) for x in _brat}
+            valid_pairs = [(k_x, k_y) for k_x, x in _brat.items() for k_y, y in _brat.items() if ((x[1], y[1]) in valid_comb and abs(x[-1]-y[-1])<=CUTOFF)]
+            _test_data = []
+            for eid_1, eid_2 in valid_pairs:
+                
+                sidx_1 = _brat[eid_1][-1]
+                sidx_2 = _brat[eid_2][-1]
+                
+                widx_1 = next((i for i, w in enumerate(self.bio_init[file.stem][sidx_1]) if w[1][0]==_brat[eid_1][2]))
+                widx_2 = next((i for i, w in enumerate(self.bio_init[file.stem][sidx_2]) if w[1][0]==_brat[eid_2][2]))
+
+                sent_1 = " ".join([self.bio_init[file.stem][sidx_1]].insert(widx_1, EN1_START).insert(widx_1+2, EN1_END))
+                sent_2 = " ".join([self.bio_init[file.stem][sidx_2]].insert(widx_2, EN2_START).insert(widx_2+2, EN2_END))
+                
+                _test_data.append((NEG_REL, sent_1, sent_2, _brat[eid_1][1], _brat[eid_2][1], eid_1, eid_2))
+
+            self.tsv[file.stem] = _test_data
+
+            to_tsv([x + (k,) for k,v in _test_data.itesm() for x in v], self._root_dir / 'tsv' / (file.stem + '.tsv'))
+
 
 #   --brat_result_output_dir $final_brat_output_with_NER_RE
     def get_result(self, result, batch_files):

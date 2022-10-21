@@ -91,11 +91,11 @@ if __name__ == '__main__':
     path_root          = Path(experiment_info['root_dir'])
     path_relation_brat = path_root / 'brat_re' #Path('/home/dparedespardo/project/SDoH_pipeline_demo/demo_data/brat_re') #Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/brat_re')
     path_encoded_text  = path_root / 'encoded_text' # Path('/home/dparedespardo/project/SDoH_pipeline_demo/demo_data/encoded_text') #Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/encoded_text')
-    path_report_meta   = Path('/data/datasets/Tianchen/data_from_old_server/2021/ADRD_data_from_Xi/note_details_0826.csv')
+    #path_report_meta   = Path('/data/datasets/Tianchen/data_from_old_server/2021/ADRD_data_from_Xi/note_details_0826.csv')
     path_output_csv    = path_root / 'output_csv' # Path('/home/dparedespardo/project/SDoH_pipeline_demo/demo_data/output_csv') #Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/output_csv')
     os.makedirs(path_output_csv, exist_ok=True)
 
-    meta_df = pd.read_csv(path_report_meta)
+    #meta_df = pd.read_csv(path_report_meta)
 
     df_out_lst = []
     for counts, brat in enumerate(path_relation_brat.glob("*.ann")):
@@ -135,7 +135,7 @@ if __name__ == '__main__':
                     tup_relation.append((parent_id, entity_id, None))
                     tup_entity.append((entity_id, concept_cat, None, None, concept_value, None))
                 else:
-                    raise NotImplementedError()
+                    pass # raise NotImplementedError()
                 
         df_entity = pd.DataFrame(tup_entity, columns =['id', 'concept_cat', 'i_0', 'i_f', 'concept_value', 'context'])
         if tup_relation:
@@ -162,8 +162,8 @@ if __name__ == '__main__':
             df_out = df_out.loc[df_out['parent_id'].isnull()]
             df_out.drop(columns=[x for x in df_out.columns if ('parent_' in x) or ('context' in x) or ('i_' in x)], inplace=True)
             df_out = gen_adrd_output_df(df_out)        
-            df_out['note_id'] = int(brat.stem.split('_')[0])
+            df_out['note_id'] = int(brat.stem.split('_')[-1])
             df_out_lst.append(df_out)
 
-    df_out = pd.concat(df_out_lst).merge(meta_df, left_on='note_id', right_on='note_ID', how='left').drop(columns=['note_id'])
+    df_out = pd.concat(df_out_lst)#.merge(meta_df, left_on='note_id', right_on='note_ID', how='left').drop(columns=['note_id'])
     df_out.to_csv(path_output_csv / 'test_output.csv', index=False)

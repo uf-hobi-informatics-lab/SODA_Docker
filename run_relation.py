@@ -173,11 +173,14 @@ if __name__ == '__main__':
     
     with open(Path(args.config), 'r') as f:
         experiment_info = yaml.safe_load(f)[args.experiment]
-    experiment_info['gpu_nodes'] = args.gpu_nodes
+    if args.gpu_nodes is not None:
+        gpu_nodes = (args.gpu_nodes[0])
+    else:
+        gpu_nodes = str(experiment_info['gpu_node'])
 
     # Define data/ouput folders
     path_root           = Path(experiment_info['root_dir'])
-    #path_root = Path('SDoH_pipeline_demo/')
+    #path_root = Path('pipeline_dev/SDoH_pipeline_demo/')
     #path_root           = Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1')
     path_encoded_text   = path_root / 'encoded_text'
     path_brat           = path_root / 'brat'
@@ -231,8 +234,8 @@ if __name__ == '__main__':
 
     # Create tsv file as dictionary
     sent_tokenizer = SentenceBoundaryDetection()
-    batch_sz=5
-    for batch in file_loader(batch_sz):
+    batch_sz=1e4
+    for batch in file_loader(int(batch_sz)):
         preds = defaultdict(list)
         for txt_fn in batch:
             ann_fn = path_brat / (txt_fn.stem + ".ann")
@@ -260,9 +263,11 @@ if __name__ == '__main__':
         # Run relation extraction
         from ClinicalTransformerRelationExtraction.src.relation_extraction import argparser as relation_argparser
         from ClinicalTransformerRelationExtraction.src.relation_extraction import app as run_relation_extraction
+        
+        
+        
 
-
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(experiment_info['gpu_node'])
+        os.environ["CUDA_VISIBLE_DEVICES"] = gpu_nodes
         sys_args = {'--model_type': experiment_info['ner_model'].get('type'),
         '--data_format_mode': '0',
         '--classification_scheme': '2',

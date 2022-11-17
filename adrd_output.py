@@ -1,3 +1,4 @@
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 import pandas as pd
 import re, copy
@@ -69,36 +70,9 @@ def gen_adrd_output_df(df):
     
     return df
 
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, required=True, help="configuration file")
-    parser.add_argument("--experiment", type=str, required=True, help="experiement to run")
-    parser.add_argument("--gpu_nodes", nargs="+", default=None, help="gpu_device_id")
-    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "lungrads_ner_validation_baseline"]
-    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "lungrads_pipeline", "--gpu_nodes", "0", "1", "2", "3"]
-    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "SDoH_pipeline", "--gpu_nodes", "0", "1", "2", "3", "4"]
-    # args = parser.parse_args(sys_args)
-    args = parser.parse_args()
-    
-    with open(Path(args.config), 'r') as f:
-        experiment_info = yaml.safe_load(f)[args.experiment]
-
-    text_range = 100
-
-    # path_relation_brat = Path('/home/alexgre/projects/from_wu_server/experiements/2020_lungrads/datasets/training')
-    # path_encoded_text = Path('/home/alexgre/projects/from_wu_server/experiements/2020_lungrads/datasets/training')
-    path_root          = Path(experiment_info['root_dir'])
-    path_relation_brat = path_root / 'brat_re' #Path('/home/dparedespardo/project/SDoH_pipeline_demo/demo_data/brat_re') #Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/brat_re')
-    path_encoded_text  = path_root / 'encoded_text' # Path('/home/dparedespardo/project/SDoH_pipeline_demo/demo_data/encoded_text') #Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/encoded_text')
-    #path_report_meta   = Path('/data/datasets/Tianchen/data_from_old_server/2021/ADRD_data_from_Xi/note_details_0826.csv')
-    path_output_csv    = path_root / 'output_csv' # Path('/home/dparedespardo/project/SDoH_pipeline_demo/demo_data/output_csv') #Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/output_csv')
-    os.makedirs(path_output_csv, exist_ok=True)
-
-    #meta_df = pd.read_csv(path_report_meta)
-
+def helper(brat_list):
     df_out_lst = []
-    for counts, brat in enumerate(path_relation_brat.glob("*.ann")):
+    for counts, brat in enumerate(brat_list): ## change this for N lists of brats?
         txt = brat.parent / (brat.stem + '.txt')
         tup_relation = []
         tup_entity = []    
@@ -110,6 +84,7 @@ if __name__ == '__main__':
                 t_lines = t.read()
                 
             lines = b.readlines()
+            
             for line in lines:
                 concept_cat = None
                 if line.strip().startswith('T'):
@@ -162,8 +137,43 @@ if __name__ == '__main__':
             df_out = df_out.loc[df_out['parent_id'].isnull()]
             df_out.drop(columns=[x for x in df_out.columns if ('parent_' in x) or ('context' in x) or ('i_' in x)], inplace=True)
             df_out = gen_adrd_output_df(df_out)        
-            df_out['note_id'] = int(brat.stem.split('_')[-1])
+            df_out['note_id'] = brat.stem# We don't care to split that, so why is it here? -> .split('_')[-1]) Similarly, we don't want it to be an int anymore, removed the int() cast
             df_out_lst.append(df_out)
 
     df_out = pd.concat(df_out_lst)#.merge(meta_df, left_on='note_id', right_on='note_ID', how='left').drop(columns=['note_id'])
-    df_out.to_csv(path_output_csv / 'test_output.csv', index=False)
+    return df_out
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, required=True, help="configuration file")
+    parser.add_argument("--experiment", type=str, required=True, help="experiement to run")
+    parser.add_argument("--processors", type=str, required=True, help="number of cores to use in parallel")
+    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "lungrads_ner_validation_baseline"]
+    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "lungrads_pipeline", "--gpu_nodes", "0", "1", "2", "3"]
+    # sys_args = ["--config", "/home/jameshuang/Projects/NLP_annotation/params/config.yml", "--experiment", "SDoH_pipeline", "--gpu_nodes", "0", "1", "2", "3", "4"]
+    # args = parser.parse_args(sys_args)
+    args = parser.parse_args()
+    
+    with open(Path(args.config), 'r') as f:
+        experiment_info = yaml.safe_load(f)[args.experiment]
+
+    text_range = 100
+
+    # path_relation_brat = Path('/home/alexgre/projects/from_wu_server/experiements/2020_lungrads/datasets/training')
+    # path_encoded_text = Path('/home/alexgre/projects/from_wu_server/experiements/2020_lungrads/datasets/training')
+    path_root          = Path(experiment_info['root_dir'])
+    path_relation_brat = path_root / 'brat_re' #Path('/home/dparedespardo/project/SDoH_pipeline_demo/demo_data/brat_re') #Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/brat_re')
+    path_encoded_text  = path_root / 'encoded_text' # Path('/home/dparedespardo/project/SDoH_pipeline_demo/demo_data/encoded_text') #Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/encoded_text')
+    #path_report_meta   = Path('/data/datasets/Tianchen/data_from_old_server/2021/ADRD_data_from_Xi/note_details_0826.csv')
+    path_output_csv    = path_root / 'output_csv' # Path('/home/dparedespardo/project/SDoH_pipeline_demo/demo_data/output_csv') #Path('/data/datasets/shared_data_2/ADRD/clinical_notes_1/output_csv')
+    os.makedirs(path_output_csv, exist_ok=True)
+
+    N = int(args.processors)
+    df_final = pd.DataFrame()
+    brat_list = np.array_split(list(path_relation_brat.glob("*.ann")), N)
+    with ProcessPoolExecutor(max_workers=N) as exe:
+        for each in exe.map(helper, brat_list):
+            df_final = df_final.append(each)
+    
+    df_final.to_csv(path_output_csv / 'test_output.csv', index=False)

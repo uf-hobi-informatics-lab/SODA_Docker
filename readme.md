@@ -34,7 +34,9 @@ config.yml:
 ## Running the pipeline demo:
 To run the demo, please execute the `run_demo.sh` providing the following arguments:
 * `-c` (configuration): Takes the path to and name of the relevant configuration file.
+* `-e` (experiment): The specific parameters from the `config.yml` file to run our experiment.
 * `-n` (nodes): GPU node to be used during the NER and relation extraction segments.
+* `-p` (processors): Number of cores to be used during the post-processing step.
 
 ### Example:
 ``` 
@@ -48,6 +50,8 @@ The output file, in .csv format, is organized in the following way:
 * `SDoH_concept`: Specific concept related to a `SDoH type`
 * `SDoH_attributes`: Further information tied to each entry.
 * `note_ID`: The note ID from which this information was extracted.
+
+If you have a metadata file to map individual notes to patients, you can also include the further entries on your output file, such as:
 * `deid_pat_ID`: De-identified patient ID (usually associated to multiple notes.)
 * `note_type`: Origin of the note (e.g. letter, progress report)
 * `ENCNTR_EFF_DATE`: Date associated to the note.

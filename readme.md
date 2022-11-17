@@ -31,8 +31,8 @@ config.yml:
     type: bert
     path: /data/datasets/zehao/sdoh/model/SDOH_bert_final
 ```
-## Running the pipeline demo:
-To run the demo, please execute the `run_demo.sh` providing the following arguments:
+## Running the pipeline:
+To run the pipeline, please execute the `run.sh` providing the following arguments:
 * `-c` (configuration): Takes the path to and name of the relevant configuration file.
 * `-e` (experiment): The specific parameters from the `config.yml` file to run our experiment.
 * `-n` (nodes): GPU node to be used during the NER and relation extraction segments.

@@ -1,3 +1,37 @@
+lungrads_ner_training: # Generate bio from brat
+  dependency_tree:
+    - [bio, bio_init]
+    - [bio, brat]
+    - [brat,bio_init]
+    - [brat,encoded_text]
+    - [bio_init, encoded_text]
+    - [bio_init, raw_text]
+    - [encoded_text, raw_text]
+  raw_data_dir: /home/jameshuang/Projects/lungrads/ner_training/datasets/training/encoded_text
+  root_dir: /home/jameshuang/Projects/lungrads/ner_training/datasets/training
+
+  sent_tokenizer:
+    _class: SentenceBoundaryDetection
+    params:
+      deid_pattern: \[\*\*|\*\*\]
+
+lungrads_ner_test: # Generate bio from brat
+  dependency_tree:
+    - [bio, bio_init]
+    - [bio, brat]
+    - [brat,bio_init]
+    - [brat,encoded_text]
+    - [bio_init, encoded_text]
+    - [bio_init, raw_text]
+    - [encoded_text, raw_text]
+  raw_data_dir: /home/jameshuang/Projects/lungrads/ner_training/datasets/test/encoded_text
+  root_dir: /home/jameshuang/Projects/lungrads/ner_training/datasets/test
+
+  sent_tokenizer:
+    _class: SentenceBoundaryDetection
+    params:
+      deid_pattern: \[\*\*|\*\*\]
+
 lungrads_pipeline:
   dependency_tree:
     - [csv_output_lungrads, brat]

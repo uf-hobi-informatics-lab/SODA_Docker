@@ -28,7 +28,7 @@ from argparse import Namespace
 
 # , note_mod_idx, root_dir=None, gpu_node=0, result='output'
 
-OUTPUT_DIR = ['raw_text', 'encoded_text', 'bio_init', 'brat', 'tsv', 'brat_re', 'brat_neg', 'brat_unit', 'csv_output_lungrads']
+OUTPUT_DIR = ['raw_text', 'encoded_text', 'bio_init', 'brat', 'bio', 'tsv', 'brat_re', 'brat_neg', 'brat_unit', 'csv_output_lungrads']
 
 # TODO: notes in subdirectories
 class BatchProcessor(object):
@@ -65,6 +65,7 @@ class BatchProcessor(object):
         self.bio_init           = {}
         self.sent_bounds        = {}
         self.brat               = {}
+        self.bio                = defaultdict(list)
         self.tsv                = {}
         self.brat_re            = defaultdict(list)
         self.brat_neg           = defaultdict(list)
@@ -90,6 +91,7 @@ class BatchProcessor(object):
         extention_dict = {'encoded_text': 'txt', 
                           'bio_init'    : 'bio', 
                           'brat'        : 'ann',
+                          'bio'         : 'bio', 
                           'tsv'         : 'tsv', 
                           'brat_re'     : 'ann', 
                           'brat_neg'    : 'ann', 
@@ -161,6 +163,10 @@ class BatchProcessor(object):
             self.sent_bounds[ifn.stem] = {i: (sent[0][1][0], sent[-1][1][1]) for i, sent in enumerate(sents)}
         return sents
 
+    def read_bio(self, ifn):
+        
+        return self.read_bio_init(ifn)
+
     def read_brat(self, ifn):
         return read_annotation_brat(ifn, include_id=True)[1]
 
@@ -211,6 +217,30 @@ class BatchProcessor(object):
             self.sent_bounds[file.stem] = sent_bounds    
             if write_output:
                 BIOdata_to_file(self._root_dir / 'bio_init' / (file.stem + '.bio'), nsents)
+
+    def get_bio(self, batch_files, write_output):
+        if write_output:
+            (self._root_dir / 'bio').mkdir(parents=True, exist_ok=True)
+        
+        for file in batch_files:
+            prev_eid = None
+            for sent in self.bio_init[file.stem]:
+                _sent = []
+                for word in sent:
+                    eid, tag = next(((ent[0], ent[4]) for ent in self.brat[file.stem] if (word[1][0] >= ent[2]) and (word[1][1] <= ent[3])), (None, None))
+                    if eid:
+                        prefix = 'B' if eid != prev_eid else 'I'
+                        prev_eid = eid
+                        _sent.append([word[0], (int(word[1][0]), int(word[1][1])), (int(word[2][0]), int(word[2][1])), f'{prefix}-{tag}'])
+                    else:
+                        _sent.append(copy.deepcopy(word))
+                self.bio[file.stem].append(_sent)
+
+            if write_output:
+                BIOdata_to_file(self._root_dir / 'bio' / (file.stem + '.bio'), self.bio[file.stem])                
+
+# [x[0], (int(x[1]), int(x[2])), (int(x[3]), int(x[4])), x[5]]
+# (ann_id, t_type, offset_s, offset_e, entity_words)
 
     def get_brat(self, batch_files, write_output):
 

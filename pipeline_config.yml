@@ -73,7 +73,12 @@ lungrads_pipeline:
       max_seq_length: 128
       data_has_offset_information: True
       use_bio: False
-        
+    # relabel: # Working on this 
+    #   funct: keyword_match
+    #   params: 
+    #     label: shape
+    #     keywords: [curvilinear, linear, peripheral, bilateral, peripheral irregular, spiculated, round, triangular, ovoid, lingular, tree-in-bud]
+
   relation_model:
     _class:
     preprocess:

@@ -301,7 +301,31 @@ class BatchProcessor(object):
                 curstring = " ".join([curstring, repr(result + current)])
 
             return curstring.lstrip()        
+        
+        # def drop_label(labeled_bio, label):
+        #     for sent in labeled_bio['sents']:
+        #         for text, w_s, w_e, w_a_s, w_a_e, predict_tag in sent:
+        #             if label in predict_tag:
+        #                 sent = (text, w_s, w_e, w_a_s, w_a_e, "O")
 
+        # def keyword_match(labeled_bio, keywords=[], label=None): # Working on this. Need more sophisticated rule to capture relation and reduce FPR
+        #     drop_label(labeled_bio, label)
+        #     keywords = sorted(keywords, key = lambda x: len(x.split(' ')), reverse=True)
+        #     for sent in labeled_bio['sents']:
+        #         sent_text = ' '.join([x[0] for x in sent])
+        #         word_idx = [0] + list(np.cumsum([len(x)+1 for x in sent_text[:-1]]))
+        #         m_starts = []
+        #         for keyword in keywords:
+        #             for m in re.finditer(r"\b{}\b".format(sent_text), keyword):
+        #                 if m.start() not in m_starts:
+        #                     m_starts.append(m.start())
+        #                     word_idx_start = word_idx.index(m.start())
+        #                     prefix = 'B'
+        #                     for _word_idx in range(word_idx_start, word_idx_start+len(keyword.split(' '))):
+        #                         text, w_s, w_e, w_a_s, w_a_e, _ = sent[_word_idx] 
+        #                         sent[_word_idx] = (text, w_s, w_e, w_a_s, w_a_e, f'{prefix}-{label}')
+        #                         prefix = 'I'
+        
         def postprocess_size(ann_text):
 
             for old_str, new_str in {'to':'-', re.compile(r"\s?-\s?"):' - '}.items():
@@ -320,6 +344,11 @@ class BatchProcessor(object):
         args.logger                 = TransformerNERLogger(self._root_dir / 'logs' / f"ner_{self.gpu_idx}.log", 'i').get_logger()
 
         labeled_bio = run_ner(args, return_labeled_bio=True, sents=self.bio_init, raw_text=self.encoded_text) # TODO: don't use deepcopy if not necessary
+
+        # if self.ner_model_params.get("relabel",{}).get("params", {}).get("label", None):
+        #     replace_by = self.ner_model_params.get("relabel",{}).get("funct", None)            
+        #     _funct = locals()[replace_by]
+        #     _funct(labeled_bio, **self.ner_model_params.get("relabel",{}).get("params", {}))
         
         format_converter(str(self._root_dir / 'encoded_text'),
                         str(self._root_dir / 'encoded_text'),
@@ -681,7 +710,8 @@ if __name__ == "__main__":
     parser.add_argument("--result", type=str, default='output_csv', choices=OUTPUT_DIR, help="result to generate")
     parser.add_argument("--debug", type=str, default=True, help="Set True to store intermediate outputs")
 
-    sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "lungrads_pipeline", "--result", "csv_output_lungrads", "--batch_sz", "50000", "--gpu_nodes", "2"]
+    # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "lungrads_pipeline", "--result", "csv_output_lungrads", "--batch_sz", "50000", "--gpu_nodes", "2"]
+    sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "lungrads_ner_training", "--result", "bio", "--batch_sz", "1000", "--gpu_nodes", "2"]
     args = parser.parse_args(sys_args)
     # args = parser.parse_args()
     

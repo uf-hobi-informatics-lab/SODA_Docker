@@ -26,17 +26,75 @@ from collections import defaultdict
 from os.path import relpath
 from argparse import Namespace
 
+def gen_adrd_output_df(df):
+
+    df['SDoH_type'] = np.nan
+    df['SDoH_concept'] = np.nan
+    df['SDoH_value'] = np.nan
+    
+    # group multiple SDoH_value
+    df = pd.concat([df.loc[~df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status'])],\
+                    df.loc[df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status'])].groupby(
+                        ['id', 'concept_cat', 'concept_value', 'child_concept_cat', 'relation'], dropna=False)['child_concept_value'].apply('|'.join).reset_index()])
+    
+    # No child
+    df.loc[df['child_concept_cat'].isnull(),'SDoH_type'] = df.loc[df['child_concept_cat'].isnull()]['concept_cat']
+    df.loc[df['child_concept_cat'].isnull(),'SDoH_value'] = df.loc[df['child_concept_cat'].isnull()]['concept_value']
+    
+    # label == substabce_use_status
+    # if df.loc[(df['concept_cat']=='Substance_use_status') & ~df['concept_value'].str.contains('smok|drug',case=False) & ~df['child_concept_cat'].str.contains('smok|drug', na=False,case=False)].shape[0]:
+    #     pprint(df)
+    for k,v in zip(['smok','drug','alcoh'],['Tobacco_use', 'Drug_use', 'Alcohol_use']):
+        df.loc[(df['concept_cat']=='Substance_use_status') & (df['concept_value'].str.contains(k,case=False) | df['child_concept_cat'].str.contains(k, na=False,case=False)),'SDoH_type'] = v
+    df.loc[df['concept_cat']=='Substance_use_status','SDoH_value'] = df.loc[df['concept_cat']=='Substance_use_status']['concept_value']
+    
+    # child_label in [substance_use_status, sdoh_status]
+    df.loc[~df['concept_cat'].isin(['Substance_use_status', 'Sdoh_status']) & ~df['relation'].isnull(),'SDoH_type'] = \
+        df.loc[~df['concept_cat'].isin(['Substance_use_status', 'Sdoh_status']) & ~df['relation'].isnull()]['concept_cat']
+    df.loc[~df['concept_cat'].isin(['Substance_use_status', 'Sdoh_status']) & ~df['relation'].isnull(),'SDoH_concept'] = \
+        df.loc[~df['concept_cat'].isin(['Substance_use_status', 'Sdoh_status']) & ~df['relation'].isnull()]['concept_value']
+    _dicts = df.loc[df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status'])][['id', 'child_concept_value']].to_dict('records')
+    for _dict in _dicts:
+        df.loc[df['id']==_dict['id'],'SDoH_value'] = _dict['child_concept_value']
+    df = df[['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept', 'relation', 'child_concept_cat', 'child_concept_value']]
+
+    # get attributes
+    _df = df.loc[df['relation'].isnull()][['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept']]  # separate roots without child (i.e., no relation) from ones that have
+    df = df.loc[~df['relation'].isnull()]
+    df.loc[~(df['child_concept_cat'].isnull()),'SDoH_attributes'] = df.loc[~(df['child_concept_cat'].isnull())][['child_concept_cat', 'child_concept_value']].apply(": ".join, axis=1)
+    df.loc[df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status']),'SDoH_attributes'] = np.nan # Don't create attribute if child_concept_value is now SDoH_value
+    # group attributes that have the same parent
+    df = df.drop(columns=['child_concept_cat', 'child_concept_value']).groupby(['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept', 'relation'], dropna=False)['SDoH_attributes'].apply(lambda x: ', '.join(x.dropna())).reset_index()
+    df.loc[df['SDoH_attributes'].str.contains(':'),'SDoH_attributes'] = '{' + df.loc[df['SDoH_attributes'].str.contains(':')]['SDoH_attributes'].astype(str) + '}'
+    df['SDoH_attributes'].replace('', np.nan, inplace=True)
+    df.loc[~(df['SDoH_attributes'].isnull()),'SDoH_attributes'] = df.loc[~(df['SDoH_attributes'].isnull())][['relation', 'SDoH_attributes']].apply(": ".join, axis=1)
+    # combine all the attributes for each root
+    df = df.drop(columns=['relation']).groupby(['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept'], dropna=False)['SDoH_attributes'].apply(lambda x: ', '.join(x.dropna())).reset_index()
+    df = pd.concat([_df, df]).drop(columns=['id'])
+    df['SDoH_attributes'].replace('', np.nan, inplace=True)
+    
+    # corner cases (drug_type)
+    for k,v in zip(['smok','drug','alcoh'],['Tobacco_use', 'Drug_use', 'Alcohol_use']):
+        row_I = df['SDoH_type'].str.contains(k,case=False) & ~df['SDoH_type'].isin(['Tobacco_use', 'Drug_use', 'Alcohol_use'])
+        df.loc[row_I, 'SDoH_attributes'] = 'Substance_use_status-' + df.loc[row_I]['SDoH_type'] + ': {' + df.loc[row_I]['SDoH_type'] + ": " + df.loc[row_I]['SDoH_value'] + "}"
+        df.loc[row_I, 'SDoH_type'] = v
+        df.loc[row_I, 'SDoH_value'] = 'yes'
+    
+    return df
+
+
 # , note_mod_idx, root_dir=None, gpu_node=0, result='output'
 
-OUTPUT_DIR = ['raw_text', 'encoded_text', 'bio_init', 'brat', 'bio', 'tsv', 'brat_re', 'brat_neg', 'brat_unit', 'csv_output_lungrads']
+OUTPUT_DIR = ['raw_text', 'encoded_text', 'bio_init', 'brat', 'bio', 'tsv', 'brat_re', 'brat_neg', 'brat_unit', 'csv_output']
 
 # TODO: notes in subdirectories
 class BatchProcessor(object):
 
     def __init__(self, root_dir=None, raw_data_dir=None, device=None, gpu_nodes=None, result=None, batch_sz=None, 
                  ner_model={}, relation_model={}, negation_model={}, unit_extraction_model={}, csv_output_params = {},
-                 sent_tokenizer={}, dependency_tree=[], debug=True):
-  
+                 sent_tokenizer={}, dependency_tree=[], debug=True, pipeline=None):
+
+        self.pipeline                   = pipeline
         self.device                     = device
         self.root_dir                   = Path(root_dir) if root_dir else None
         self.raw_data_dir               = Path(raw_data_dir) if raw_data_dir else None
@@ -124,7 +182,7 @@ class BatchProcessor(object):
         else:
             raise NotImplementedError()
 
-    def read_csv_output_lungrads(self):
+    def read_csv_output(self):
             
         output_file = (self._root_dir / 'csv_output' / self.csv_output_params.get('output_file', 'output.csv'))
         processed_file = (self._root_dir / 'csv_output' / 'processed_file.txt')
@@ -409,8 +467,12 @@ class BatchProcessor(object):
         tsv = sum(list(self.tsv.values()), [])
         preds = run_relation_extraction(args, tsv=tsv)
         
-        type_maps = pickle.load(open(self.relation_model_params['params']['type_map'],'rb'))
-        rel_tuple_lst = [(k, type_maps[(ent_1, ent_2)], eid_1, eid_2) for k, v in self.tsv.items() for _, _, _, ent_1, ent_2, eid_1, eid_2 in v]
+        if self.relation_model_params['params'].get('type_map', False):
+            _type_maps = pickle.load(open(self.relation_model_params['params']['type_map'],'rb'))
+            type_maps = lambda x,y: _type_maps[(x, y)]
+        else:
+            type_maps = lambda x,y: '-'.join([x, y])
+        rel_tuple_lst = [(k, type_maps(ent_1, ent_2), eid_1, eid_2) for k, v in self.tsv.items() for _, _, _, ent_1, ent_2, eid_1, eid_2 in v]
         
         for (fid, rel_type, eid_1, eid_2), pred in zip(rel_tuple_lst, preds): 
             if pred == self.relation_model_params['params']['non_relation_label']:
@@ -526,98 +588,161 @@ class BatchProcessor(object):
                     with open(fn, 'w') as f:
                         pass
 
-    def get_csv_output_lungrads(self, batch_files, write_output):
+    def get_entities_tuples(self, batch_file, text_range=100, get_relation_text=False):
+
+        tup_relation = []
+        tup_entity = []
+        _text = self.encoded_text[batch_file.stem]
+
+        tup_entity.extend([(eid, label, ann_text, _text[max(0,int(offset_s)-text_range):min(int(offset_e)+text_range,len(_text))]) \
+            for eid, ann_text, offset_s, offset_e, label in self.brat[batch_file.stem]])
+        if get_relation_text:
+            tup_relation.extend([(parent_id, child_id, relation) for _, relation, parent_id, child_id in self.brat_re[batch_file.stem]])
+        else:
+            tup_relation.extend([(parent_id, child_id) for _, _, parent_id, child_id in self.brat_re[batch_file.stem]])
+            
+        for i, x in enumerate(self.brat_neg[batch_file.stem] + self.brat_unit[batch_file.stem]):
+            if len(x) == 3:
+                tup_entity.append((f'A{i+1}', 'negation', x[1], None))
+            elif len(x) == 4:
+                tup_entity.append((f'A{i+1}', x[1], x[3], None))
+            else:
+                raise NotImplementedError()                
+            tup_relation.append((x[2], f'A{i+1}'))
+
+        return tup_entity, tup_relation
+    
+    def write_csv_output(self, df_all, batch_files, filename):
         
-        if write_output:
-            (self._root_dir / 'csv_output').mkdir(parents=True, exist_ok=True)
-        
+        output_file = self._root_dir / 'csv_output' / filename
+        if output_file.is_file():
+            df_all.to_csv(output_file, mode='a', index=False, header=False)
+        else:
+            df_all.to_csv(output_file, index=False)
+
+        processed_file = (self._root_dir / 'csv_output' / 'processed_file.txt')
+        if processed_file.is_file():
+            with open(processed_file, 'a') as f:
+                f.write("\n"+"\n".join([x.stem for x in batch_files]))
+        else:
+            with open(processed_file, 'w') as f:
+                f.write("\n".join([x.stem for x in batch_files]))
+
+    def get_csv_output_df(self, batch_files, text_range=100):
+            
         def get_meta(batch_file):
             irb_id, note_id, note_ver, _, pat_id, date = re.findall(r'(IRB\d+)_(ORDER_\d+)_(\w+)_(IRB\d+)_(PAT_\d+)_(\d+-\d+-\d+)',batch_file.stem)[0]
             return (irb_id, note_id, note_ver, pat_id, date)
         
         df_out_lst = []
-        text_range = 100
-        for batch_file in batch_files:
-            
-            tup_relation = []
-            tup_entity = []
-            _text = self.encoded_text[batch_file.stem]
-            
-            if not self.brat[batch_file.stem]:
-                continue
+        
+        if self.pipeline == 'lungrads':
 
-            tup_entity.extend([(eid, label, ann_text, _text[max(0,int(offset_s)-text_range):min(int(offset_e)+text_range,len(_text))]) \
-                for eid, ann_text, offset_s, offset_e, label in self.brat[batch_file.stem]])
-            tup_relation.extend([(parent_id, child_id) for _, _, parent_id, child_id in self.brat_re[batch_file.stem]])
-
-            for i, x in enumerate(self.brat_neg[batch_file.stem] + self.brat_unit[batch_file.stem]):
-                if len(x) == 3:
-                    tup_entity.append((f'A{i+1}', 'negation', x[1], None))
-                elif len(x) == 4:
-                    tup_entity.append((f'A{i+1}', x[1], x[3], None))
-                else:
-                    raise NotImplementedError()                
-                tup_relation.append((x[2], f'A{i+1}'))
-            # tup_entity.extend([(eid, 'negation', pred, None) for (eid, pred, _) in self.brat_neg[batch_file.stem]])
-            # tup_entity.extend([(eid, label, ann_text, None) for (eid, label, _, ann_text) in self.brat_unit[batch_file.stem]])                
-            # tup_relation.extend([(parent_id, eid) for (eid, _, parent_id) in self.brat_neg[batch_file.stem]])
-            # tup_relation.extend([(parent_id, eid) for (eid, _, parent_id, _) in self.brat_unit[batch_file.stem]])
-
-            irb_id, note_id, note_ver, pat_id, date = get_meta(batch_file)
-            df_entity = pd.DataFrame(tup_entity, columns =['id', 'concept_cat', 'concept_value', 'context'])
-            if tup_relation:
-                df_relation = pd.DataFrame(tup_relation, columns =['parent_id', 'child_id'])
-                df_entity_child = pd.DataFrame(tup_entity, columns =['child_id', 'child_concept_cat', 'child_concept_value', 'child_context'])
-                df_entity_parent = pd.DataFrame(tup_entity, columns =['parent_id', 'parent_concept_cat', 'parent_concept_value', 'parent_context'])
-                df_entity = df_entity.merge(df_relation, left_on='id', right_on='parent_id', how='left').drop(columns=['parent_id']).merge(df_entity_child, on='child_id', how='left')
-                df_relation = pd.DataFrame(tup_relation, columns =['parent_id', '_child_id'])
-                df_entity = df_entity.merge(df_relation, left_on='id', right_on='_child_id', how='left').drop(columns=['_child_id']).merge(df_entity_parent, on='parent_id', how='left')
-
-                # 2nd order relation
-                df_gchild = df_entity.dropna(subset=['parent_id'])[['id','concept_cat','concept_value', 'context', 'parent_id']] # gchild must have parent
-                df_gchild.columns = ['gchild_id','gchild_concept_cat', 'gchild_concept_value', 'gchild_context', '_parent_id']
-                df_gchild = df_entity.dropna(subset=['child_id']).merge(df_gchild, left_on='child_id', right_on='_parent_id', how='inner').drop(columns=['child_id', '_parent_id']) # gparent must have child
-                if df_gchild.shape[0]:
-                    df_gchild = df_gchild[['id', 'concept_cat', 'concept_value', 'context', 'gchild_concept_cat', 'gchild_concept_value']]
-                    df_gchild.columns = ['id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value']            
-                    df_out = pd.concat([df_entity.loc[df_entity['concept_cat']=='nodule'][['id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value']],
-                                        df_gchild.loc[df_gchild['concept_cat']=='nodule']])
-                else:
-                    df_out = df_entity.loc[df_entity['concept_cat']=='nodule'][['id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value']]                               
-                if df_out.empty:
+            for batch_file in batch_files:
+                            
+                if not self.brat[batch_file.stem]:
                     continue
-            else:
-                df_out = df_entity.loc[df_entity['concept_cat']=='nodule'][['id', 'concept_cat', 'concept_value', 'context']]
-                if df_out.empty:
-                    continue
-                df_out['child_concept_cat'] = np.nan
-                df_out['child_concept_value'] = np.nan
-
-            for info, val in zip(['irb_id', 'note_id', 'note_ver', 'pat_id', 'date'], [irb_id, note_id, note_ver, pat_id, date]):
-                df_out[info] = val
-            df_out_lst.append(df_out)
                 
-        df_all = pd.concat(df_out_lst, ignore_index=True)
-        df_all.loc[~df_all['child_concept_value'].isna(),'child_concept_value'] = df_all.loc[~df_all['child_concept_value'].isna()].groupby(['id','concept_cat','concept_value','context','child_concept_cat','irb_id','note_id','note_ver','pat_id','date'])['child_concept_value'].transform(lambda x: ','.join(x))
-        df_all = df_all.drop_duplicates()
-        df_all = pd.pivot(df_all, index=['irb_id','note_id','note_ver','pat_id','date','id','concept_cat','concept_value','context'], 
-                        columns = 'child_concept_cat',values = 'child_concept_value').reset_index().rename_axis(None, axis=1)
+                tup_entity, tup_relation = self.get_entities_tuples(batch_file, text_range=text_range)
+                # tup_entity.extend([(eid, 'negation', pred, None) for (eid, pred, _) in self.brat_neg[batch_file.stem]])
+                # tup_entity.extend([(eid, label, ann_text, None) for (eid, label, _, ann_text) in self.brat_unit[batch_file.stem]])                
+                # tup_relation.extend([(parent_id, eid) for (eid, _, parent_id) in self.brat_neg[batch_file.stem]])
+                # tup_relation.extend([(parent_id, eid) for (eid, _, parent_id, _) in self.brat_unit[batch_file.stem]])
 
+                irb_id, note_id, note_ver, pat_id, date = get_meta(batch_file)
+                df_entity = pd.DataFrame(tup_entity, columns =['id', 'concept_cat', 'concept_value', 'context'])
+                if tup_relation:
+                    df_relation = pd.DataFrame(tup_relation, columns =['parent_id', 'child_id'])
+                    df_entity_child = pd.DataFrame(tup_entity, columns =['child_id', 'child_concept_cat', 'child_concept_value', 'child_context'])
+                    df_entity_parent = pd.DataFrame(tup_entity, columns =['parent_id', 'parent_concept_cat', 'parent_concept_value', 'parent_context'])
+                    df_entity = df_entity.merge(df_relation, left_on='id', right_on='parent_id', how='left').drop(columns=['parent_id']).merge(df_entity_child, on='child_id', how='left')
+                    df_relation = pd.DataFrame(tup_relation, columns =['parent_id', '_child_id'])
+                    df_entity = df_entity.merge(df_relation, left_on='id', right_on='_child_id', how='left').drop(columns=['_child_id']).merge(df_entity_parent, on='parent_id', how='left')
+
+                    # 2nd order relation
+                    df_gchild = df_entity.dropna(subset=['parent_id'])[['id','concept_cat','concept_value', 'context', 'parent_id']] # gchild must have parent
+                    df_gchild.columns = ['gchild_id','gchild_concept_cat', 'gchild_concept_value', 'gchild_context', '_parent_id']
+                    df_gchild = df_entity.dropna(subset=['child_id']).merge(df_gchild, left_on='child_id', right_on='_parent_id', how='inner').drop(columns=['child_id', '_parent_id']) # gparent must have child
+                    if df_gchild.shape[0]:
+                        df_gchild = df_gchild[['id', 'concept_cat', 'concept_value', 'context', 'gchild_concept_cat', 'gchild_concept_value']]
+                        df_gchild.columns = ['id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value']            
+                        df_out = pd.concat([df_entity.loc[df_entity['concept_cat']=='nodule'][['id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value']],
+                                            df_gchild.loc[df_gchild['concept_cat']=='nodule']])
+                    else:
+                        df_out = df_entity.loc[df_entity['concept_cat']=='nodule'][['id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value']]                               
+                    if df_out.empty:
+                        continue
+                else:
+                    df_out = df_entity.loc[df_entity['concept_cat']=='nodule'][['id', 'concept_cat', 'concept_value', 'context']]
+                    if df_out.empty:
+                        continue
+                    df_out['child_concept_cat'] = np.nan
+                    df_out['child_concept_value'] = np.nan
+
+                for info, val in zip(['irb_id', 'note_id', 'note_ver', 'pat_id', 'date'], [irb_id, note_id, note_ver, pat_id, date]):
+                    df_out[info] = val
+                df_out_lst.append(df_out)
+                    
+            df_all = pd.concat(df_out_lst, ignore_index=True)
+            df_all.loc[~df_all['child_concept_value'].isna(),'child_concept_value'] = df_all.loc[~df_all['child_concept_value'].isna()].groupby(['id','concept_cat','concept_value','context','child_concept_cat','irb_id','note_id','note_ver','pat_id','date'])['child_concept_value'].transform(lambda x: ','.join(x))
+            df_all = df_all.drop_duplicates()
+            df_all = pd.pivot(df_all, index=['irb_id','note_id','note_ver','pat_id','date','id','concept_cat','concept_value','context'], 
+                            columns = 'child_concept_cat',values = 'child_concept_value').reset_index().rename_axis(None, axis=1)
+
+        elif self.pipeline == 'sdoh':
+            
+            for batch_file in batch_files:
+                            
+                if not self.brat[batch_file.stem]:
+                    continue
+                
+                tup_entity, tup_relation = self.get_entities_tuples(batch_file, text_range=text_range, get_relation_text=True)         
+
+                df_entity = pd.DataFrame(tup_entity, columns =['id', 'concept_cat', 'concept_value', 'context'])
+                if tup_relation:
+                    df_relation = pd.DataFrame(tup_relation, columns =['parent_id', 'child_id', 'relation'])
+                    df_entity_child = pd.DataFrame(tup_entity, columns =['child_id', 'child_concept_cat', 'child_concept_value', 'child_context'])
+                    df_entity_parent = pd.DataFrame(tup_entity, columns =['parent_id', 'parent_concept_cat', 'parent_concept_value', 'parent_context'])
+                    df_entity = df_entity.merge(df_relation, left_on='id', right_on='parent_id', how='left').drop(columns=['parent_id']).merge(df_entity_child, on='child_id', how='left')
+                    df_relation = pd.DataFrame(tup_relation, columns =['parent_id', '_child_id', 'relation']).drop(columns=['relation'])
+                    df_entity = df_entity.merge(df_relation, left_on='id', right_on='_child_id', how='left').drop(columns=['_child_id']).merge(df_entity_parent, on='parent_id', how='left')
+
+                    # 2nd order relation
+                    df_gchild = df_entity.dropna(subset=['parent_id','child_id'])[['id','child_concept_cat','child_concept_value', 'child_context', 'relation']] # gchild must have parent
+                    df_gchild.columns = ['_child_id','gchild_concept_cat', 'gchild_concept_value', 'gchild_context', 'child_relation']
+                    df_gchild = df_entity.dropna(subset=['child_id']).merge(df_gchild, left_on='child_id', right_on='_child_id', how='inner').drop(columns=['child_id', '_child_id']) # gparent must have child
+
+                    if df_gchild.shape[0]:
+                        df_gchild = df_gchild[['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'gchild_concept_cat', 'gchild_concept_value', 'child_relation']]
+                        df_gchild.columns = ['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value', 'relation']            
+                        df_out = pd.concat([df_entity[['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value', 'relation']],
+                                            df_gchild])
+                    else:
+                        df_out = df_entity[['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value', 'relation']]
+
+                    df_out = df_out.loc[df_out['parent_id'].isnull()]
+                    df_out.drop(columns=[x for x in df_out.columns if ('parent_' in x) or ('context' in x) or ('i_' in x)], inplace=True)
+                    df_out = gen_adrd_output_df(df_out)
+                    df_out['note_id'] = batch_file.stem
+                    df_out_lst.append(df_out)
+
+            df_all = pd.concat(df_out_lst, ignore_index=True)            
+            
+        else:
+            raise KeyError
+
+        return df_all        
+
+    def get_csv_output(self, batch_files, write_output):
+        
+        if write_output:
+            (self._root_dir / 'csv_output').mkdir(parents=True, exist_ok=True)
+        
+        df_all = self.get_csv_output_df(batch_files)
+        
         if write_output:
             
-            output_file = self._root_dir / 'csv_output' / self.csv_output_params.get('output_file', 'output.csv')
-            if output_file.is_file():
-                df_all.to_csv(output_file, mode='a', index=False, header=False)
-            else:
-                df_all.to_csv(output_file, index=False)
-
-            processed_file = (self._root_dir / 'csv_output' / 'processed_file.txt')
-            if processed_file.is_file():
-                with open(processed_file, 'a') as f:
-                    f.write("\n"+"\n".join([x.stem for x in batch_files]))
-            else:
-                with open(processed_file, 'w') as f:
-                    f.write("\n".join([x.stem for x in batch_files]))
+            self.write_csv_output(df_all, batch_files, self.csv_output_params.get('output_file', 'output.csv'))
 
         self.csv_output.extend([x.stem for x in batch_files])
 
@@ -681,9 +806,10 @@ if __name__ == "__main__":
     parser.add_argument("--result", type=str, default='output_csv', choices=OUTPUT_DIR, help="result to generate")
     parser.add_argument("--debug", type=str, default=True, help="Set True to store intermediate outputs")
 
-    sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "lungrads_pipeline", "--result", "csv_output_lungrads", "--batch_sz", "50000", "--gpu_nodes", "2"]
-    args = parser.parse_args(sys_args)
-    # args = parser.parse_args()
+    # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "lungrads_pipeline", "--result", "brat_re", "--batch_sz", "100", "--gpu_nodes", "0", "1"]
+    # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "sdoh_pipeline", "--result", "csv_output", "--batch_sz", "100", "--gpu_nodes", "0"]
+    # args = parser.parse_args(sys_args)
+    args = parser.parse_args()
     
     # Load configuration
     with open(Path(args.config), 'r') as f:

@@ -32,13 +32,113 @@ lungrads_ner_test: # Generate bio from brat
     params:
       deid_pattern: \[\*\*|\*\*\]
 
-lungrads_pipeline:
+
+sdoh_pipeline:
+  pipeline: sdoh
   dependency_tree:
-    - [csv_output_lungrads, brat]
-    - [csv_output_lungrads, brat_re]
-    - [csv_output_lungrads, brat_neg]
-    - [csv_output_lungrads, brat_unit]
-    - [csv_output_lungrads, encoded_text]
+    - [csv_output, brat]
+    - [csv_output, brat_re]
+    - [csv_output, encoded_text]
+    - [brat_re,tsv]
+    - [tsv,brat]
+    - [tsv,bio_init]
+    - [tsv,encoded_text]
+    - [brat,bio_init]
+    - [brat,encoded_text]
+    - [bio_init, encoded_text]
+    - [bio_init, raw_text]
+    - [encoded_text, raw_text]
+  root_dir: /data/datasets/shared_data_2/pipeline_dev_test_sdoh
+  raw_data_dir: /data/datasets/shared_data_2/pipeline_dev_test_sdoh/raw_text/
+
+  sent_tokenizer:
+    _class: SentenceBoundaryDetection
+    params:
+      deid_pattern: \[\*\*|\*\*\]
+
+  ner_model:
+    _class:
+    params:
+      model_type: bert
+      pretrained_model: /home/dparedespardo/project/SDoH/pipeline/execution/model/SDOH_bert_final
+      do_lower_case: None
+      eval_batch_size: 8
+      max_seq_length: 128
+      data_has_offset_information: None
+      use_bio: False
+
+  relation_model:
+    _class:
+    preprocess:
+      CUTOFF: 1
+      EN1_START: "[s1]"
+      EN1_END: "[e1]"
+      EN2_START: "[s2]"
+      EN2_END: "[e2]"
+      NEG_REL: NonRel
+      valid_comb: # TODO: load this from type_map
+        - [Tobacco_use, Substance_use_status] 
+        - [Substance_use_status, Smoking_type]
+        - [Substance_use_status, Smoking_freq_ppd] 
+        - [Substance_use_status, Smoking_freq_py] 
+        - [Substance_use_status, Smoking_freq_qy] 
+        - [Substance_use_status, Smoking_freq_sy]
+        - [Substance_use_status, Smoking_freq_other] 
+        - [Alcohol_use, Substance_use_status]
+        - [Substance_use_status, Alcohol_freq] 
+        - [Substance_use_status, Alcohol_type] 
+        - [Substance_use_status, Alcohol_other] 
+        - [Drug_use, Substance_use_status]
+        - [Substance_use_status, Drug_freq] 
+        - [Substance_use_status, Drug_type]
+        - [Substance_use_status, Drug_other] 
+        - [Sex_act, Sdoh_status]
+        - [Sex_act, Partner] 
+        - [Sex_act, Protection] 
+        - [Sex_act, Sex_act_other] 
+        - [Occupation, Employment_status]
+        - [Occupation, Employment_location] 
+        - [Gender, Sdoh_status]
+        - [Social_cohesion, Social_method] 
+        - [Social_method, Sdoh_status]
+        - [Physical_act, Sdoh_status] 
+        - [Physical_act, Sdoh_freq] 
+        - [Living_supply, Sdoh_status] 
+        - [Abuse, Sdoh_status]
+        - [Transportation, Sdoh_status] 
+        - [Health_literacy, Sdoh_status]
+        - [Financial_constrain, Sdoh_status] 
+        - [Social_cohesion, Sdoh_status]
+        - [Social_cohesion, Sdoh_freq] 
+        - [Gender, Sdoh_status] 
+        - [Race, Sdoh_status] 
+        - [Ethnicity, Sdoh_status]
+        - [Living_Condition, Sdoh_status]
+    params:
+      model_type: bert
+      new_model_dir: /home/dparedespardo/project/SDoH/pipeline/execution/model/bert/
+      do_lower_case: True
+      eval_batch_size: 4
+      max_seq_length: 512
+      data_format_mode: 0
+      data_file_header: True
+      num_core: 1
+      non_relation_label: NonRel
+      classification_mode: bin
+      log_lvl: w
+
+  csv_output_params:
+    force_rewrite: True # remove old csv if True
+    ouput_file: output.csv
+
+lungrads_pipeline:  # Generate output csv from raw text
+  pipeline: lungrads
+  dependency_tree:
+    - [csv_output, brat]
+    - [csv_output, brat_re]
+    - [csv_output, brat_neg]
+    - [csv_output, brat_unit]
+    - [csv_output, encoded_text]
     - [brat_unit, encoded_text]
     - [brat_unit, brat]
     - [brat_re,tsv]
@@ -52,10 +152,10 @@ lungrads_pipeline:
     - [bio_init, raw_text]
     - [encoded_text, raw_text]
   # root_dir: /data/datasets/shared_data_2/IRB201901754_lungrads
-  # root_dir: /data/datasets/shared_data_2/pipeline_dev_test
-  # raw_data_dir: /data/datasets/shared_data_2/pipeline_dev_test/raw_text/
-  root_dir: /data/datasets/shared_data_2/2022_IRB201901754_LDCT_IDR_data/radiology_reports/
-  raw_data_dir: /data/datasets/shared_data_2/2022_IRB201901754_LDCT_IDR_data/radiology_reports/raw_text/
+  root_dir: /data/datasets/shared_data_2/pipeline_dev_test_lungrads
+  raw_data_dir: /data/datasets/shared_data_2/pipeline_dev_test_lungrads/raw_text/
+  # root_dir: /data/datasets/shared_data_2/2022_IRB201901754_LDCT_IDR_data/radiology_reports/
+  # raw_data_dir: /data/datasets/shared_data_2/2022_IRB201901754_LDCT_IDR_data/radiology_reports/raw_text/
   # TODO: specify model parameters here
 
   sent_tokenizer:
@@ -92,16 +192,16 @@ lungrads_pipeline:
         - [nodule, shape]  
     params:
       model_type: albert
-      new_model_dir: /data/datasets/alexgre/from_wu_server/experiements/2020_lungrads/relation_extraction/models/RE_bin_albert_albert-base-v2_aio_cs2_0_th1_5_4
+      new_model_dir: /data/datasets/alexgre/archive/from_wu_server/experiements/2020_lungrads/relation_extraction/models/RE_bin_albert_albert-base-v2_aio_cs2_0_th1_5_4
       do_lower_case: True
       eval_batch_size: 128
       max_seq_length: 512
       data_format_mode: 0
       data_file_header: True
-      num_core: 16
+      num_core: 1
       non_relation_label: NonRel
       classification_mode: bin
-      type_map: /data/datasets/alexgre/from_wu_server/experiements/2020_lungrads/re_all/mappings.pkl
+      type_map: /data/datasets/alexgre/archive/from_wu_server/experiements/2020_lungrads/re_all/mappings.pkl
       log_lvl: w
 
   negation_model:

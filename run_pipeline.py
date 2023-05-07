@@ -803,11 +803,13 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, required=True, help="configuration file")
     parser.add_argument("--experiment", type=str, required=True, help="experiement to run")
     parser.add_argument("--gpu_nodes", nargs="+", default=[0], help="gpu_device_id")
-    parser.add_argument("--result", type=str, default='output_csv', choices=OUTPUT_DIR, help="result to generate")
-    parser.add_argument("--debug", type=str, default=True, help="Set True to store intermediate outputs")
-
-    # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "lungrads_pipeline", "--result", "brat_re", "--batch_sz", "100", "--gpu_nodes", "0", "1"]
-    # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "sdoh_pipeline", "--result", "csv_output", "--batch_sz", "100", "--gpu_nodes", "0"]
+    parser.add_argument("--result", type=str, default='csv_output', choices=OUTPUT_DIR, help="result to generate")
+    parser.add_argument("--debug", action='store_true', help="store intermediate outputs")
+    parser.add_argument("--raw_data_dir", type=str, default=None, help="raw text directory")
+    parser.add_argument("--root_dir", type=str, default=None, help="output directory")
+    
+    # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "lungrads_pipeline", "--result", "brat_re", "--batch_sz", "100", "--gpu_nodes", "0", "1", "--debug"]
+    # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "sdoh_pipeline", "--result", "csv_output", "--batch_sz", "100", "--gpu_nodes", "0", "--debug"]
     # args = parser.parse_args(sys_args)
     args = parser.parse_args()
     
@@ -817,7 +819,12 @@ if __name__ == "__main__":
         experiment_info['result'] = args.result
     experiment_info['batch_sz'] = args.batch_sz
     experiment_info['debug'] = args.debug
+    
+    # Overwrite directories for docker user
+    if args.raw_data_dir is not None: experiment_info['raw_data_dir'] = args.raw_data_dir
+    if args.root_dir is not None: experiment_info['root_dir'] = args.root_dir
 
+    # Allow multiplle gpus
     if len(args.gpu_nodes) > 1:
         multiprocessing_wrapper(args, experiment_info)        
     else:

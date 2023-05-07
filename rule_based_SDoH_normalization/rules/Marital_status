@@ -1,0 +1,7 @@
+MARITAL_STATUS:
+
+expression="%NOT_ON_FILE_DICT",val="other"
+expression="%SINGLE_DICT",val="single"
+expression="%MARRIED_DICT",val="married_has_partner"
+expression="%WIDOW_DICT",val="widow"
+expression="%DIVORCED_DICT",val="divorced"

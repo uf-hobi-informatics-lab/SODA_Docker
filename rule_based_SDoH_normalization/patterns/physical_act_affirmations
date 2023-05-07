@@ -1,0 +1,16 @@
+PHYSICAL_ACTIVITY_DICT:
+yes
+daily
+every[\s]*day
+regular(ly|)
+exercise
+(physically[\s]|)active
+regular exercise
+walk(s|ing|)
+jog(s|ging|)
+run(s|ning|)
+bi(ke|cycle|king)
+swim(s|ming|)
+3x
+weekly
+gym

@@ -1,0 +1,6 @@
+HISPANIC_TERMS_DICT:
+yes
+latin(o|a|)
+south([\s]*america(n|)|)
+(hispanic|)[\s]*(or|/|)[\s]*(latino|)
+(puerto[\s]*|)rican

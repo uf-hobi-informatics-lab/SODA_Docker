@@ -1,0 +1,5 @@
+POORLY_KEPT_DICT:
+
+poor(-|[\s]*)[\w]*
+under(-|[\s]*)[\w]*
+mal(-|[\s]*)[\w]*

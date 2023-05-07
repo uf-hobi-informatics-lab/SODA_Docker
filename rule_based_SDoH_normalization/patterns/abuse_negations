@@ -1,0 +1,16 @@
+NEGATIVE_MENTIONS_OF_ABUSE_DICT:
+
+no(ne|)
+(patient[\s]*|)refused
+denies
+never
+
+SUBSTANCE_ABUSED_DICT:
+etoh
+mari(j|h)uana
+pot
+co(caine|ke)
+tobacco
+alcohol
+cigar(ette|)(s|)
+drug(s|)

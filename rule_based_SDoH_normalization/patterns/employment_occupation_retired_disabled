@@ -1,0 +1,5 @@
+RETIRED_DISABLED_TERMS_DICT:
+(?<![\w])dis[\w]*
+(?<![\w])ret(?!ail)[\w]*
+cannot
+unable

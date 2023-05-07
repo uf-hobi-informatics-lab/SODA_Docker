@@ -1,0 +1,23 @@
+SINGLE_DICT:
+single
+never
+not
+never( been |) married
+unmarried
+
+MARRIED_DICT:
+married
+marriage
+(has[\s]*|)partner
+significan([\s]*other|)
+wife
+husband
+engaged
+
+WIDOW_DICT:
+widow(ed|er|)
+
+DIVORCED_DICT:
+divorce(d|s|)
+(legally[\s]*|)separated
+never remarried

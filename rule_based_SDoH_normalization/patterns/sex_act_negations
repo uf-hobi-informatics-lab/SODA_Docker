@@ -1,0 +1,3 @@
+NOT_SEXUALLY_ACTIVE_DICT:
+not[\s]*(currently|active)
+inactive

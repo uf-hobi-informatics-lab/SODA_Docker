@@ -1,0 +1,10 @@
+ABUSE:
+
+expression="%NOT_ON_FILE_DICT",val="other"
+expression="%SUBSTANCE_ABUSED_DICT([\s]%ABUSE_TERMS_DICT|)",val="other"
+expression="%AFFIRMATIONS_OF_ABUSE_DICT",val="abused"
+expression="%ABUSIVE_PARTIES_DICT",val="abused"
+expression="%ABUSE_TERMS_DICT([\s]by[\s][\w]+|)",val="abused"
+expression="(%TYPES_OF_ABUSE_DICT([\s]and[\s]|,[\s]|))+([\s]%ABUSE_TERMS_DICT|)",val="abused"
+expression="%NEGATIVE_MENTIONS_OF_ABUSE_DICT",val="not_abused"
+expression="%NEGATION_DICT[\s]*(%AFFIRMATIONS_OF_ABUSE_DICT|)",val="not_abused"

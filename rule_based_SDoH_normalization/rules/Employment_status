@@ -1,0 +1,8 @@
+EMPLOYMENT_STATUS:
+
+expression="%HIGHSCHOOL_GRADE_NUMBER[\s]*%GRADE_DICT",val="unemployed"
+expression="%UNEMPLOYMENT_TERMS_DICT",val="unemployed"
+expression="%RETIRED_DISABLED_TERMS_DICT",val="retired_disabled"
+expression="%NOT_ON_FILE_DICT",val="other"
+expression="[\w]",val="employed"
+

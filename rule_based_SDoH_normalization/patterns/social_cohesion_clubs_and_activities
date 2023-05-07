@@ -1,0 +1,21 @@
+SOCIAL_ACTIONS_DICT:
+attend(s|)
+talk(s|)(on phone|with friend(s|)|with family|)
+gather(s|ing(s|)|)
+gets[\s]together
+engage(s|)
+participat(e|es|ing)
+active member
+yes
+
+SOCIAL_ORGANIZATIONS_DICT:
+church
+book([\s]|-|)club
+aa meeting(s|)
+school
+convention(s|)
+golf club
+country club
+
+SOCIAL_RECLUSION_DICT:
+isolate(d|s|ing|)

@@ -1,0 +1,8 @@
+FINANCIAL_CONSTRAIN:
+
+expression="%NOT_ON_FILE_DICT",val="other"
+expression="%NEGATION_DICT[\s]*(%FIN_QUANTIFIER_DICT[\s]*|)%FINANCIAL_STABILITY_TERM_DICT",val="has_financial_constraint"
+expression="%FINANCIAL_STABILITY_TERM_DICT",val="no_financial_constraint"
+expression="%FINANCIAL_INSTABILITY_TERM_DICT",val="has_financial_constraint"
+expression="%NEGATION_DICT[\s]*(%FIN_QUANTIFIER_DICT[\s]*|)%FINANCIAL_INSTABILITY_TERM_DICT",val="no_financial_constraint"
+expression="%NEGATION_DICT[\s]*%FIN_QUANTIFIER_DICT",val="no_financial_constraint"

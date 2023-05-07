@@ -14,6 +14,8 @@ from ClinicalTransformerRelationExtraction.src.data_processing.io_utils import s
 
 from ClinicalTransformerClassification.src.batch_prediction import app as negation_classification
 
+from rule_based_SDoH_normalization.run_engine import normalization as sdoh_output_normalization
+
 MIMICIII_PATTERN = "\[\*\*|\*\*\]"
 import pandas as pd
 import numpy as np
@@ -727,7 +729,7 @@ class BatchProcessor(object):
                     df_out_lst.append(df_out)
 
             df_all = pd.concat(df_out_lst, ignore_index=True)            
-            
+            df_all = sdoh_output_normalization(df_all)
         else:
             raise KeyError
 

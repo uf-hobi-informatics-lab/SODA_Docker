@@ -1,0 +1,6 @@
+NOT_PHYSICALLY_ACTIVE_DICT:
+inadequate[\s]*(?:activity|exercise|)
+unable
+rare(ly|)[\s]*(?:activity|exercise|)
+limited[\s]*(?:activity|exercise|)
+poor[\s]*(?:activity|exercise|)

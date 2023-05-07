@@ -1,0 +1,5 @@
+LIVING_SUPPLY:
+
+expression="%NOT_ON_FILE_DICT",val="other"
+expression="%WELL_KEPT_DICT",val="well_developed"
+expression="%POORLY_KEPT_DICT",val="poorly_developed"

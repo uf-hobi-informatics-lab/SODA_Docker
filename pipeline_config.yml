@@ -33,7 +33,7 @@ lungrads_ner_test: # Generate bio from brat
       deid_pattern: \[\*\*|\*\*\]
 
 
-sdoh_pipeline:
+sdoh_pipeline_docker:
   pipeline: sdoh
   dependency_tree:
     - [csv_output, brat]
@@ -60,7 +60,8 @@ sdoh_pipeline:
     _class:
     params:
       model_type: bert
-      pretrained_model: /home/dparedespardo/project/SDoH/pipeline/execution/model/SDOH_bert_final
+      # pretrained_model: /home/dparedespardo/project/SDoH/pipeline/execution/model/SDOH_bert_final
+      pretrained_model: /models/SDOH_bert_final
       do_lower_case: None
       eval_batch_size: 8
       max_seq_length: 128
@@ -116,7 +117,8 @@ sdoh_pipeline:
         - [Living_Condition, Sdoh_status]
     params:
       model_type: bert
-      new_model_dir: /home/dparedespardo/project/SDoH/pipeline/execution/model/bert/
+      # new_model_dir: /home/dparedespardo/project/SDoH/pipeline/execution/model/bert/
+      new_model_dir: /models/bert/
       do_lower_case: True
       eval_batch_size: 4
       max_seq_length: 512

@@ -3,6 +3,10 @@ FROM continuumio/miniconda3
 
 COPY ./pipeline_dev /pipeline_dev
 
+COPY ~/models/SDOH_bert_final /models/SDOH_bert_final  
+
+COPY ~/models/bert /models/bert
+
 WORKDIR /pipeline_dev
 
 RUN conda env update --name base --file environment.yml --prune

@@ -26,7 +26,7 @@ class RuleEngine(object):
         self._rules={} # extraction rules
         
         self._loadPatterns()
-        self._loadNormPatterns()
+        # self._loadNormPatterns()
         self._loadRules()
 
         ###

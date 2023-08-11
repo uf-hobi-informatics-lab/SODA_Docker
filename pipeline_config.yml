@@ -140,9 +140,12 @@ lungrads_pipeline:  # Generate output csv from raw text
     - [csv_output, brat_re]
     - [csv_output, brat_neg]
     - [csv_output, brat_unit]
+    - [csv_output, brat_regex]
     - [csv_output, encoded_text]
     - [brat_unit, encoded_text]
     - [brat_unit, brat]
+    - [brat_regex, encoded_text]
+    - [brat_regex, brat]
     - [brat_re,tsv]
     - [brat_neg,tsv]
     - [tsv,brat]
@@ -234,6 +237,35 @@ lungrads_pipeline:  # Generate output csv from raw text
     _class:
     postprocess:
       normalize: mm
+
+  regex_params:
+    - parent_label: texture
+      parent_text: '\bsolid\b'
+      label: solid_size
+      text: 
+      - regex: '(solid (?:portion|component|part)s?)\s+(?:(?:[a-z]+\s)+)((?:\d+(?:\.\d+)?)(?:(?:\s*x\s*(?:\d+(?:\.\d+)?))*)\s*(?:cm|mm))'
+        parent_text_group: 1
+        text_group: 2
+        exclude:
+        - text: 'and'
+          except: 'and measur' 
+        - text: 'with'
+      - regex: '((?:\d+(?:\.\d+)?)(?:(?:\s*x\s*(?:\d+(?:\.\d+)?))*)\s*(?:cm|mm))\s*(?:(?:[a-z]+\s)*)(solid (?:portion|component|part)s?)'
+        parent_text_group: 2
+        text_group: 1
+        exclude:
+        - text: 'and'
+        - text: 'with'
+    - parent_label: texture
+      parent_text: '(?<!non)(?<!not)(?<!-)(?<!- )calcifi(?:cation|ed)'
+      label: calcification_type
+      text: 
+      - regex: '(?<!-)(?<!\s) (total(?:ly|) calcifi(?:cation|ed))'
+      - regex: '(?<!-)(?<!\s) (complete(?:ly|) calcifi(?:cation|ed))'
+      - regex: '(?<!-)(?<!\s) (central(?:ly|) calcifi(?:cation|ed))'
+      - regex: '(?<!-)(?<!\s) (popcorn calcification)'
+      - regex: '(?<!-)(?<!\s) (calcifi(?:cation|ed) in concentric rings)'
+      - regex: '(?<!-)(?<!\s) (fat-containing nodule(?:s|))'
 
   csv_output_params:
     force_rewrite: True # remove old csv if True

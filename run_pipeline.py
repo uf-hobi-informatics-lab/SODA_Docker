@@ -87,13 +87,13 @@ def gen_adrd_output_df(df):
 
 # , note_mod_idx, root_dir=None, gpu_node=0, result='output'
 
-OUTPUT_DIR = ['raw_text', 'encoded_text', 'bio_init', 'brat', 'bio', 'tsv', 'brat_re', 'brat_neg', 'brat_unit', 'csv_output']
+OUTPUT_DIR = ['raw_text', 'encoded_text', 'bio_init', 'brat', 'bio', 'tsv', 'brat_re', 'brat_neg', 'brat_unit', 'brat_regex', 'csv_output']
 
 # TODO: notes in subdirectories
 class BatchProcessor(object):
 
     def __init__(self, root_dir=None, raw_data_dir=None, device=None, gpu_nodes=None, result=None, batch_sz=None, 
-                 ner_model={}, relation_model={}, negation_model={}, unit_extraction_model={}, csv_output_params = {},
+                 ner_model={}, relation_model={}, negation_model={}, unit_extraction_model={}, regex_params={}, csv_output_params = {},
                  sent_tokenizer={}, dependency_tree=[], debug=True, pipeline=None):
 
         self.pipeline                   = pipeline
@@ -105,6 +105,7 @@ class BatchProcessor(object):
         self.relation_model_params      = relation_model
         self.negation_model_params      = negation_model
         self.unit_extraction_params     = unit_extraction_model
+        self.regex_params               = regex_params
         self.csv_output_params          = csv_output_params
         self.sent_tokenizer_params      = sent_tokenizer
         self.gpu_idx                    = gpu_nodes[0]
@@ -130,6 +131,7 @@ class BatchProcessor(object):
         self.brat_re            = defaultdict(list)
         self.brat_neg           = defaultdict(list)
         self.brat_unit          = defaultdict(list)
+        self.brat_regex         = defaultdict(list)
 
     def get_subdirs(self, p):
         sub_ps = [x for x in p.iterdir() if x.is_dir() and x.stem not in OUTPUT_DIR]
@@ -155,7 +157,8 @@ class BatchProcessor(object):
                           'tsv'         : 'tsv', 
                           'brat_re'     : 'ann', 
                           'brat_neg'    : 'ann', 
-                          'brat_unit'   : 'ann'}
+                          'brat_unit'   : 'ann', 
+                          'brat_regex'  : 'ann'}
 
         if result == 'raw_text':
             return True
@@ -245,6 +248,9 @@ class BatchProcessor(object):
         return read_annotation_brat(ifn, include_id=True)[3]
     
     def read_brat_unit(self, ifn):
+        return read_annotation_brat(ifn, include_id=True)[3]
+    
+    def read_brat_regex(self, ifn):
         return read_annotation_brat(ifn, include_id=True)[3]
         
     def get_encoded_text(self, batch_files, write_output):
@@ -590,6 +596,54 @@ class BatchProcessor(object):
                     with open(fn, 'w') as f:
                         pass
 
+    def get_brat_regex(self, batch_files, write_output):
+        
+        def check_exclude(re_obj, exclude_list):
+            return all([(_exclude['text'] not in re_obj.group(0)) or (_exclude.get('except', '@@@@@') in re_obj.group(0)) for _exclude in exclude_list])
+            
+        def check_relation(re_obj_tups, offset_s, offset_e):
+            # Find the first match (idealy we should only have one match (unless overlapping re_obj))
+            return next(((re_obj, re_info) for re_obj, re_info in re_obj_tups \
+                if not ((re_obj.span(re_info.get('parent_text_group',1))[1] < offset_s) or (offset_e < re_obj.span(re_info.get('parent_text_group',1))[0]))), (None, None))
+            
+        if write_output:
+            (self._root_dir / 'brat_regex').mkdir(parents=True, exist_ok=True)
+
+        for batch_file in batch_files:
+            k = batch_file.stem
+            re_find_dict = dict()
+            for i, x in enumerate(self.brat.get(k, [])):
+                eid, ann_text, offset_s, offset_e, label = x
+                for regex_dict in self.regex_params:
+                    # loop through parent_label
+                    if regex_dict['parent_label'] == label and len(re.findall(regex_dict['parent_text'], ann_text, re.IGNORECASE)):
+                        # if parent_label and parent_text matche regex scenario -> find match
+                        _key = '-'.join([regex_dict['parent_label'], regex_dict['label']])
+                        if _key not in re_find_dict:
+                            # not in cache -> store result
+                            re_find_dict[_key] = sum([[(x, re_info) for x in re.finditer(re_info['regex'], self.encoded_text[k], re.IGNORECASE) 
+                                                        if check_exclude(x,re_info.get('exclude',[]))] for re_info in regex_dict['text']], [])
+                        if len(re_find_dict[_key]):
+                            # check relation if match exists  
+                            re_obj_found, re_info_found = check_relation(re_find_dict[_key], offset_s, offset_e)
+                            if re_obj_found is not None:
+                                self.brat_regex[k].append((regex_dict['label'], eid, re_obj_found.group(re_info_found.get('text_group',1)).replace(" ", "_")))
+                                break
+
+        for batch_file in batch_files:
+            k = batch_file.stem
+            fn = self._root_dir / 'brat_regex' / (k + '.ann')
+            if k in self.brat_regex:
+                self.brat_regex[k] = [(f"A{i+1}",)+x for i, x in enumerate(self.brat_regex[k])]
+                if write_output:
+                    save_text("\n".join("A{}\t{} {} {}".format(*((i+1,) + x[1:])) for i, x in enumerate(self.brat_regex[k])), fn)
+            else:
+                self.brat_regex[k] = []
+                if write_output:
+                    with open(fn, 'w') as f:
+                        pass                            
+                            
+
     def get_entities_tuples(self, batch_file, text_range=100, get_relation_text=False):
 
         tup_relation = []
@@ -603,7 +657,7 @@ class BatchProcessor(object):
         else:
             tup_relation.extend([(parent_id, child_id) for _, _, parent_id, child_id in self.brat_re[batch_file.stem]])
             
-        for i, x in enumerate(self.brat_neg[batch_file.stem] + self.brat_unit[batch_file.stem]):
+        for i, x in enumerate(self.brat_neg[batch_file.stem] + self.brat_unit[batch_file.stem] + self.brat_regex[batch_file.stem]):
             if len(x) == 3:
                 tup_entity.append((f'A{i+1}', 'negation', x[1], None))
             elif len(x) == 4:

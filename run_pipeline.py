@@ -21,7 +21,7 @@ import pandas as pd
 import numpy as np
 import torch.multiprocessing as mp
 import unicodedata, os, ftfy
-import argparse, torch
+import argparse, torch, time
 import re, yaml, copy, warnings, pickle
 from encode_text import preprocessing
 from collections import defaultdict
@@ -94,7 +94,7 @@ class BatchProcessor(object):
 
     def __init__(self, root_dir=None, raw_data_dir=None, device=None, gpu_nodes=None, result=None, batch_sz=None, 
                  ner_model={}, relation_model={}, negation_model={}, unit_extraction_model={}, regex_params={}, csv_output_params = {},
-                 sent_tokenizer={}, dependency_tree=[], debug=True, pipeline=None):
+                 sent_tokenizer={}, dependency_tree=[], debug=True, pipeline=None, run_time_log=None):
 
         self.pipeline                   = pipeline
         self.device                     = device
@@ -118,6 +118,7 @@ class BatchProcessor(object):
         self.sent_tokenizer             = None
         self.csv_output                 = []
         self.debug                      = debug
+        self.run_time_log               = run_time_log
         self.clear_cache()
 
     def clear_cache(self):
@@ -252,6 +253,13 @@ class BatchProcessor(object):
     
     def read_brat_regex(self, ifn):
         return read_annotation_brat(ifn, include_id=True)[3]
+    
+    def log_run_time(self, funct, *argv):
+        t0 = time.time()
+        funct(*argv)
+        with open(self.run_time_log,'a+') as f:
+            f.write("{}: {}\n".format(funct.__name__, time.time()-t0))
+        return
         
     def get_encoded_text(self, batch_files, write_output):
         if write_output:
@@ -813,7 +821,11 @@ class BatchProcessor(object):
             funct = getattr(self, f"get_{result}")
             _result = (getattr(self, result) if ('csv_output' not in result) else self.csv_output)
             write_output = self.debug or (self.result == result)
-            funct([x for x in batch_files if x.stem not in _result], write_output)
+
+            if self.run_time_log is not None:
+                self.log_run_time(funct, [x for x in batch_files if x.stem not in _result], write_output)
+            else:
+                funct([x for x in batch_files if x.stem not in _result], write_output)
         return 
     
     def run(self):
@@ -863,6 +875,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action='store_true', help="store intermediate outputs")
     parser.add_argument("--raw_data_dir", type=str, default=None, help="raw text directory")
     parser.add_argument("--root_dir", type=str, default=None, help="output directory")
+    parser.add_argument("--run_time_log", type=str, default=None, help="store run time")
     
     # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "lungrads_pipeline", "--result", "brat_re", "--batch_sz", "100", "--gpu_nodes", "0", "1", "--debug"]
     # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "sdoh_pipeline", "--result", "csv_output", "--batch_sz", "100", "--gpu_nodes", "0", "--debug"]
@@ -875,6 +888,7 @@ if __name__ == "__main__":
         experiment_info['result'] = args.result
     experiment_info['batch_sz'] = args.batch_sz
     experiment_info['debug'] = args.debug
+    experiment_info['run_time_log'] = args.run_time_log
     
     # Overwrite directories for docker user
     if args.raw_data_dir is not None: experiment_info['raw_data_dir'] = args.raw_data_dir

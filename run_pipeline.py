@@ -63,17 +63,20 @@ def gen_adrd_output_df(df):
     # get attributes
     _df = df.loc[df['relation'].isnull()][['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept']]  # separate roots without child (i.e., no relation) from ones that have
     df = df.loc[~df['relation'].isnull()]
-    df.loc[~(df['child_concept_cat'].isnull()),'SDoH_attributes'] = df.loc[~(df['child_concept_cat'].isnull())][['child_concept_cat', 'child_concept_value']].apply(": ".join, axis=1)
-    df.loc[df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status']),'SDoH_attributes'] = np.nan # Don't create attribute if child_concept_value is now SDoH_value
-    # group attributes that have the same parent
-    df = df.drop(columns=['child_concept_cat', 'child_concept_value']).groupby(['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept', 'relation'], dropna=False)['SDoH_attributes'].apply(lambda x: ', '.join(x.dropna())).reset_index()
-    df.loc[df['SDoH_attributes'].str.contains(':'),'SDoH_attributes'] = '{' + df.loc[df['SDoH_attributes'].str.contains(':')]['SDoH_attributes'].astype(str) + '}'
-    df['SDoH_attributes'].replace('', np.nan, inplace=True)
-    df.loc[~(df['SDoH_attributes'].isnull()),'SDoH_attributes'] = df.loc[~(df['SDoH_attributes'].isnull())][['relation', 'SDoH_attributes']].apply(": ".join, axis=1)
-    # combine all the attributes for each root
-    df = df.drop(columns=['relation']).groupby(['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept'], dropna=False)['SDoH_attributes'].apply(lambda x: ', '.join(x.dropna())).reset_index()
-    df = pd.concat([_df, df]).drop(columns=['id'])
-    df['SDoH_attributes'].replace('', np.nan, inplace=True)
+    if len(df):
+        df.loc[~(df['child_concept_cat'].isnull()),'SDoH_attributes'] = df.loc[~(df['child_concept_cat'].isnull())][['child_concept_cat', 'child_concept_value']].apply(": ".join, axis=1)
+        df.loc[df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status']),'SDoH_attributes'] = np.nan # Don't create attribute if child_concept_value is now SDoH_value
+        # group attributes that have the same parent
+        df = df.drop(columns=['child_concept_cat', 'child_concept_value']).groupby(['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept', 'relation'], dropna=False)['SDoH_attributes'].apply(lambda x: ', '.join(x.dropna())).reset_index()
+        df.loc[df['SDoH_attributes'].str.contains(':'),'SDoH_attributes'] = '{' + df.loc[df['SDoH_attributes'].str.contains(':')]['SDoH_attributes'].astype(str) + '}'
+        df['SDoH_attributes'].replace('', np.nan, inplace=True)
+        df.loc[~(df['SDoH_attributes'].isnull()),'SDoH_attributes'] = df.loc[~(df['SDoH_attributes'].isnull())][['relation', 'SDoH_attributes']].apply(": ".join, axis=1)
+        # combine all the attributes for each root
+        df = df.drop(columns=['relation']).groupby(['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept'], dropna=False)['SDoH_attributes'].apply(lambda x: ', '.join(x.dropna())).reset_index()
+        df = pd.concat([_df, df]).drop(columns=['id'])
+        df['SDoH_attributes'].replace('', np.nan, inplace=True)
+    else:
+        df = _df.drop(columns=['id'])
     
     # corner cases (drug_type)
     for k,v in zip(['smok','drug','alcoh'],['Tobacco_use', 'Drug_use', 'Alcohol_use']):
@@ -763,32 +766,32 @@ class BatchProcessor(object):
                 tup_entity, tup_relation = self.get_entities_tuples(batch_file, text_range=text_range, get_relation_text=True)         
 
                 df_entity = pd.DataFrame(tup_entity, columns =['id', 'concept_cat', 'concept_value', 'context'])
-                if tup_relation:
-                    df_relation = pd.DataFrame(tup_relation, columns =['parent_id', 'child_id', 'relation'])
-                    df_entity_child = pd.DataFrame(tup_entity, columns =['child_id', 'child_concept_cat', 'child_concept_value', 'child_context'])
-                    df_entity_parent = pd.DataFrame(tup_entity, columns =['parent_id', 'parent_concept_cat', 'parent_concept_value', 'parent_context'])
-                    df_entity = df_entity.merge(df_relation, left_on='id', right_on='parent_id', how='left').drop(columns=['parent_id']).merge(df_entity_child, on='child_id', how='left')
-                    df_relation = pd.DataFrame(tup_relation, columns =['parent_id', '_child_id', 'relation']).drop(columns=['relation'])
-                    df_entity = df_entity.merge(df_relation, left_on='id', right_on='_child_id', how='left').drop(columns=['_child_id']).merge(df_entity_parent, on='parent_id', how='left')
+                # if tup_relation:
+                df_relation = pd.DataFrame(tup_relation, columns =['parent_id', 'child_id', 'relation'])
+                df_entity_child = pd.DataFrame(tup_entity, columns =['child_id', 'child_concept_cat', 'child_concept_value', 'child_context'])
+                df_entity_parent = pd.DataFrame(tup_entity, columns =['parent_id', 'parent_concept_cat', 'parent_concept_value', 'parent_context'])
+                df_entity = df_entity.merge(df_relation, left_on='id', right_on='parent_id', how='left').drop(columns=['parent_id']).merge(df_entity_child, on='child_id', how='left')
+                df_relation = pd.DataFrame(tup_relation, columns =['parent_id', '_child_id', 'relation']).drop(columns=['relation'])
+                df_entity = df_entity.merge(df_relation, left_on='id', right_on='_child_id', how='left').drop(columns=['_child_id']).merge(df_entity_parent, on='parent_id', how='left')
 
-                    # 2nd order relation
-                    df_gchild = df_entity.dropna(subset=['parent_id','child_id'])[['id','child_concept_cat','child_concept_value', 'child_context', 'relation']] # gchild must have parent
-                    df_gchild.columns = ['_child_id','gchild_concept_cat', 'gchild_concept_value', 'gchild_context', 'child_relation']
-                    df_gchild = df_entity.dropna(subset=['child_id']).merge(df_gchild, left_on='child_id', right_on='_child_id', how='inner').drop(columns=['child_id', '_child_id']) # gparent must have child
+                # 2nd order relation
+                df_gchild = df_entity.dropna(subset=['parent_id','child_id'])[['id','child_concept_cat','child_concept_value', 'child_context', 'relation']] # gchild must have parent
+                df_gchild.columns = ['_child_id','gchild_concept_cat', 'gchild_concept_value', 'gchild_context', 'child_relation']
+                df_gchild = df_entity.dropna(subset=['child_id']).merge(df_gchild, left_on='child_id', right_on='_child_id', how='inner').drop(columns=['child_id', '_child_id']) # gparent must have child
 
-                    if df_gchild.shape[0]:
-                        df_gchild = df_gchild[['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'gchild_concept_cat', 'gchild_concept_value', 'child_relation']]
-                        df_gchild.columns = ['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value', 'relation']            
-                        df_out = pd.concat([df_entity[['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value', 'relation']],
-                                            df_gchild])
-                    else:
-                        df_out = df_entity[['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value', 'relation']]
+                if df_gchild.shape[0]:
+                    df_gchild = df_gchild[['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'gchild_concept_cat', 'gchild_concept_value', 'child_relation']]
+                    df_gchild.columns = ['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value', 'relation']            
+                    df_out = pd.concat([df_entity[['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value', 'relation']],
+                                        df_gchild])
+                else:
+                    df_out = df_entity[['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value', 'relation']]
 
-                    df_out = df_out.loc[df_out['parent_id'].isnull()]
-                    df_out.drop(columns=[x for x in df_out.columns if ('parent_' in x) or ('context' in x) or ('i_' in x)], inplace=True)
-                    df_out = gen_adrd_output_df(df_out)
-                    df_out['note_id'] = batch_file.stem
-                    df_out_lst.append(df_out)
+                df_out = df_out.loc[df_out['parent_id'].isnull()]
+                df_out.drop(columns=[x for x in df_out.columns if ('parent_' in x) or ('context' in x) or ('i_' in x)], inplace=True)
+                df_out = gen_adrd_output_df(df_out)
+                df_out['note_id'] = batch_file.stem
+                df_out_lst.append(df_out)
 
             df_all = pd.concat(df_out_lst, ignore_index=True)            
             df_all = sdoh_output_normalization(df_all)

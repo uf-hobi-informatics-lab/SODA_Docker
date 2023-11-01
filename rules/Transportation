@@ -1,0 +1,6 @@
+TRANSPORTATION:
+
+expression="%NEGATION_DICT",val="no_issue"
+#expression="%TRANSPORTATION_DICT",val="no_issue"
+expression="yes",val="lack_transportation"
+expression="%NOT_ON_FILE_DICT",val="other"

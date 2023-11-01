@@ -54,14 +54,14 @@ def run_ner_pred(sys_args, subdirs):
     sys_args = sum([([k, v] if not isinstance(v, list) else [k]+v) if (v is not None) else [k] for k,v in sys_args.items()],[])
     args = argparser(sys_args)
     args.subdirs = subdirs
-    if args.gpu_nodes is not None:
+    if args.gpu_nodes is None:
         multiprocessing_wrapper(args)
     else:
-        os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+        #os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+        #os.environ["CUDA_VISIBLE_DEVICES"] = "0"
         logger = TransformerNERLogger(args.log_file, args.log_lvl).get_logger()
         args.logger = logger
-        args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        args.device = "cpu" #torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info("Task will use cuda device: GPU_{}.".format(torch.cuda.current_device())
                     if torch.cuda.device_count() else 'Task will use CPU.')
         main(args)

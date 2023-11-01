@@ -1,0 +1,20 @@
+UNEMPLOYMENT_TERMS_DICT:
+quit.*
+jobless
+lay off
+laid.*
+terminated.*
+unemp.*
+stop.*
+resign.*
+(?<![\w])no([\s]*work|)
+leav.*
+left.*
+lost[\s]*.*
+los(s|ing|e)[\s]*.*
+home[\s]*maker
+house([\s]|-|)wife
+stay(-|[\s])at(-|[\s])home
+previous.*
+student
+

@@ -1,0 +1,6 @@
+SEX_ACT:
+
+expression="%SEX_ACTIVITY_DICT",val="active"
+expression="%NEGATION_DICT([\s]*%SEX_ACTIVITY_DICT|)",val="not_active"
+expression="%NOT_SEXUALLY_ACTIVE_DICT",val="not_active"
+expression="%NOT_ON_FILE_DICT",val="other"

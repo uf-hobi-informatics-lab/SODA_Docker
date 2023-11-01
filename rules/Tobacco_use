@@ -1,0 +1,12 @@
+TOBACCO_USE:
+
+expression="%NOT_ON_FILE_DICT",val="other"
+expression="(?<!not[\s])(%TIME_MENTIONS_DICT[\s]|)%SMOKE_DICT",val="yes"
+expression="(?<!not[\s])%QUANTIFIERS_DICT([\s]%SMOKE_DICT|)",val="yes"
+expression="%TIME_MENTIONS_DICT[\s]%SMOKE_NEGATION_DICT([\s]|-|)%SMOKE_DICT",val="no"
+expression="%SMOKE_NEGATION_DICT[\s]*(a|-|)[\s]*(%TIME_MENTIONS_DICT|)(([\s]*|)%SMOKE_DICT|)",val="no"
+expression="(?<!not[\s])%TIME_MENTIONS_DICT([\s]%SMOKE_DICT|)",val="yes"
+expression="stop(s|ped|)([\s]%SMOKE_DICT|)",val="yes"
+expression="%PAST_MENTION_DICT[\s]*(%ALCOHOL_DICT|DRUG_DICT)",val="other"
+expression="%PAST_MENTION_DICT[\s]*(SMOKE_DICT|)",val="yes"
+expression="%NEGATION_DICT([\s]*%SMOKE_DICT|)",val="no"

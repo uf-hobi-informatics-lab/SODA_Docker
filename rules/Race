@@ -1,0 +1,10 @@
+RACE:
+
+expression="%NOT_ON_FILE_DICT",val="other"
+expression="%WHITE_DICT",val="caucasian"
+expression="%BLACK_DICT",val="african"
+expression="%ASIAN_PC_ISLANDER_DICT",val="asian"
+expression="%HISPANIC_DICT",val="hispanic"
+expression="%AMERICAN_ALASKA_NATIVE_DICT",val="american_indian_or_alaska_native"
+expression="%AUSTRALIAN_ABORIGINE_DICT",val="australian_Aborigine"
+expression="%MIXED_DICT",val="mixed_race"

@@ -1,0 +1,16 @@
+EDUCATION:
+
+expression="(%NEGATION_DICT[\s]*|)%HIGHSCHOOL_ED_DICT",val="high_school_or_lower"
+expression="%GRADE_DICT",val="high_school_or_lower" 
+expression="%HIGHSCHOOL_GRADE_NUMBER([\s]*%GRADE_DICT|)",val="high_school_or_lower" 
+expression="%NEGATION_DICT[\s]*%COLLEGE_ATTENDANCE_DICT",val="high_school_or_lower"
+expression="COLLEGE_ATTENDANCE_DICT",val="college_or_above"
+expression="%COLLEGE_YEARS_DICT([\s]*%COLLEGE_ED_DICT|%MAJORS_DICT|)",val="college_or_above"
+expression="%PROFESIONAL_SCHOOLS_DICT([\s]*|-|)school",val="college_or_above"
+expression="%COLLEGE_ED_DICT([\s]*%DEGREE_DICT|)",val="college_or_above"
+expression="%UNIVERSITY_INSTITUTION_DICT",val="college_or_above"
+expression="%MAJORS_DICT",val="college_or_above"
+expression="(%NEGATION_DICT[\s]*|)%DEGREE_DICT",val="college_or_above"
+expression="%COLLEGE_ED_DICT[\s]*(in|)%MAJORS_DICT",val="college_or_above"
+expression="%COLLEGE_ED_DICT[\s]*(student|)[\s]*(from|at|)[\s]*%UNIVERSITY_INSTITUTION_DICT",val="college_or_above"
+expression="%NOT_ON_FILE_DICT",val="other"

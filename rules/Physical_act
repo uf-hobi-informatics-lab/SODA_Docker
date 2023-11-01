@@ -1,0 +1,6 @@
+PHYSICAL_ACT:
+
+expression="%PHYSICAL_ACTIVITY_DICT",val="physically_active"
+expression="%NEGATION_DICT([\s]%PHYSICAL_ACTIVITY_DICT|)",val="not_active"
+expression="%NOT_PHYSICALLY_ACTIVE_DICT",val="not_active"
+expression="%NOT_ON_FILE_DICT",val="other"

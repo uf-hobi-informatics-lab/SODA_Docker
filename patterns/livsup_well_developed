@@ -1,0 +1,12 @@
+WELL_KEPT_DICT:
+
+well(-|[\s]*)[\w]*
+fair(ly|)(-|[\s]*)[\w]*
+normal(ly|)(-|[\s]*)[\w]*
+general
+hydrated
+nourished
+clean
+built
+dressed
+developed

@@ -1,0 +1,10 @@
+HOMELESS_SHELTER_DICT:
+
+homeless(ness|)
+park
+road
+street (with (some friends|h(is|er) dog|)|)
+(under (a|)|) bridge
+outside
+hotel([\s]*room|)
+temp(orary|oral|)([\s]*arrangement(s|)|)

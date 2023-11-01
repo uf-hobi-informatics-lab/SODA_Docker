@@ -1,0 +1,8 @@
+LIVING_CONDITION:
+
+expression="%NOT_ON_FILE_DICT",val="other"
+expression="%HOMELESS_SHELTER_DICT",val="homeless_shelter_unstable"
+expression="%STABLE_LIVING_DICT",val="stable"
+expression="%FAMILY_TERMS_DICT",val="stable"
+expression="%CITY_TOWN_PLACES_DICT",val="stable"
+expression="%HOUSE_TYPE_DICT",val="stable"

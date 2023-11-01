@@ -1,0 +1,69 @@
+STABLE_LIVING_DICT:
+(with|at)(.*)
+(liv(e(s|)|ing)|resid(e(s|)|ing))[\s]*(in %CITY_TOWN_PLACES_DICT|)((with|at)(.*)|)
+
+FAMILY_TERMS_DICT:
+husband
+wife
+son
+daughter
+children
+kids
+alone
+h(im|er) own
+(by |)h(im|er)self
+pet
+parents
+mother
+mom
+father
+dad
+brother
+sister
+sib(ling(s|)|)
+nephew
+niece
+h(is|er) (kids|.*?children)
+spouse
+grand(.*)
+(boy|girl)friend(s|)
+significant other
+partner
+fiance(e|)
+in-law(s|)
+family
+
+CITY_TOWN_PLACES_DICT:
+gainesville
+gnv
+micanopy
+alachua
+wil(l|)iston
+palatka
+starke
+waldo
+lake(land| city|)
+[\w]+ville
+[\w]+town
+[\w]+burg
+(saint|st) augustine
+orlando
+kissimmee
+davenport
+miami
+(day|del)tona
+howie-in-the-hills
+flagler
+valdosta
+
+HOUSE_TYPE_DICT:
+house
+home
+mobile[\s]*home
+trailer
+townho(use|me)
+apartment
+rental
+cabin
+condo
+(residential|)[\s]*complex

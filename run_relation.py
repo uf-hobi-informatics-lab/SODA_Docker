@@ -234,7 +234,7 @@ if __name__ == '__main__':
 
     # Create tsv file as dictionary
     sent_tokenizer = SentenceBoundaryDetection()
-    batch_sz=1e4
+    batch_sz=1e5
     for batch in file_loader(int(batch_sz)):
         preds = defaultdict(list)
         for txt_fn in batch:
@@ -267,13 +267,13 @@ if __name__ == '__main__':
         
         
 
-        os.environ["CUDA_VISIBLE_DEVICES"] = gpu_nodes
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(os.popen("nvidia-smi --query-gpu=memory.free,index --format=csv,nounits,noheader | sort -nr | head -4 | awk '{ print $NF }'").read()).replace('\n', ' ')
         sys_args = {'--model_type': experiment_info['ner_model'].get('type'),
         '--data_format_mode': '0',
         '--classification_scheme': '2',
         '--pretrained_model': experiment_info['ner_model'].get('path'),
         '--data_dir': str(path_tsv),
-        '--new_model_dir': '/data/datasets/zehao/sdoh/relations_model/bert',
+        '--new_model_dir': experiment_info['rel_model'].get('path'),
         '--predict_output_file': str(path_tsv / 'predictions.txt'),
         '--overwrite_model_dir': None,
         '--seed': '13',

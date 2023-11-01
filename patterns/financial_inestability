@@ -1,0 +1,15 @@
+FINANCIAL_INSTABILITY_TERM_DICT:
+
+concern(s|ed|)
+assistance
+constraint(s|)
+difficult(ies|y|)
+limit(ation(s|)|ed)
+problems
+(resource[\s]*|)strained
+stress(ed|ors|)
+worr(y|ies|ied)
+trouble(d|s|)
+hard
+help
+resource(s|)

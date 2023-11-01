@@ -1,0 +1,7 @@
+SOCIAL_COHESION:
+
+expression="(%SOCIAL_ACTIONS_DICT[\s]*|)%SOCIAL_ORGANIZATIONS_DICT",val="yes"
+expression="%SOCIAL_ACTIONS_DICT",val="yes"
+expression="%NEGATION_DICT([\s]*%SOCIAL_ACTIONS_DICT|)([\s]*%SOCIAL_ORGANIZATIONS_DICT|)",val="no"
+expression="%SOCIAL_RECLUSION_DICT",val="no"
+expression="%NOT_ON_FILE_DICT",val="other"

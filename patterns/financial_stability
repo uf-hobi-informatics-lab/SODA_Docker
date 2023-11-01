@@ -1,0 +1,12 @@
+FINANCIAL_STABILITY_TERM_DICT:
+
+stable
+supported
+well
+none
+no(t|)
+
+FIN_QUANTIFIER_DICT:
+very
+many
+somewhat

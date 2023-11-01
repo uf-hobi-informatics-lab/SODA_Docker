@@ -1,0 +1,11 @@
+NOT_ON_FILE_DICT:
+
+[Nn]ot on file
+[Nn]o ([\w]+[\s]*)+ on file
+#none
+not[\s]on
+unknown([\s]if([\s]ever|)|)
+unkn
+not[\s](ask(ed|)|discuss(ed|))
+[Yy]es[|][Nn]o(t|)
+[Nn]o(t|)[|][Yy]es

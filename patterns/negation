@@ -1,0 +1,13 @@
+NEGATION_DICT:
+no(n(e|)|)
+not
+never
+den(ies|ied|y(ing|))
+stop(s|ped|)
+neg(ative|ate|ates|)
+avoid(s|ed|)
+did(nt|'nt| not) get h(is|er)
+did(nt|'nt| not) finish
+does(nt|'nt| not)
+did(nt|'nt| not)
+refuse(s|d|ing|)

@@ -1,0 +1,13 @@
+DRUG_USE:
+
+expression="%NOT_ON_FILE_DICT",val="other"
+expression="%DRUG_DICT",val="yes"
+expression="%DRUG_ADMISSION_DICT",val="yes"
+expression="%DRUG_METHOD_DICT",val="yes"
+expression="%QUANTIFIERS_DICT[\s]*(%DRUG_DICT|)",val="yes"
+expression="%FREQ_MENTION_DICT[\s]*(%DRUG_DICT|)",val="yes"
+expression="%NEGATION_DICT([\s]*%DRUG_DICT|)",val="no"
+expression="%NEGATION_DICT[\s]*(a|an|-|)[\s]*(%FREQ_MENTION_DICT|)[\s]*(%DRUG_DICT|)",val="no"
+expression="%PAST_MENTION_DICT[\s]*(%DRUG_DICT|)",val="yes"
+expression="%DRUG_NEGATION_DICT",val="no"
+expression="%PAST_MENTION_DICT[\s]*(%ALCOHOL_DICT|SMOKE_DICT)",val="other"

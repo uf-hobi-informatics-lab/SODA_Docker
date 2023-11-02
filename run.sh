@@ -1,13 +1,15 @@
 #!/bin/bash
 
+nodes=""  # Initialize nodes as an empty string
+
 while getopts f:d:n:g:p: flag
 do
     case "${flag}" in
         f) file=${OPTARG};;
         d) directory=${OPTARG};;
         n) name=${OPTARG};;
-        g) nodes=${OPTARG};;
-        p) prcssr=${OPTARG}
+        g) nodes=$(echo ${OPTARG} | sed 's/,/ /g');;  # Replace commas with spaces
+        p) prcssr=${OPTARG};;
     esac
 done
 config=${directory}/config.yml

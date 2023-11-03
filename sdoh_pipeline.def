@@ -1,0 +1,17 @@
+Bootstrap: docker
+From: python:3.9.7
+
+%files
+    ./ /app
+    /lustre/orange-hitrust/uf-odsri/hexing/NLP_models/sdoh/models /app/models
+
+%post
+    apt-get update && apt-get install -y python3-pip
+    pip install --upgrade pip
+    pip install -r /app/requirements.txt
+    pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu116
+    chmod +x /app/run.sh
+
+%runscript
+    exec /app/run.sh
+

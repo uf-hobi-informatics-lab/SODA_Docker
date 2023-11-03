@@ -137,6 +137,7 @@ def check_tags(s1, s2):
 
 # TODO: wtire everything all at once
 def to_tsv(data, fn):
+    print(data)
     full_text = ["\t".join([str(i+1) for i in range(len(data[0]))])]
     for each in data:
         full_text.append("\t".join([str(e) for e in each]))
@@ -155,6 +156,8 @@ def all_in_one(*dd):
 
 def file_loader(batch_sz):
     file_lst = list(path_encoded_text.glob("*.txt"))
+    print(len(file_lst))
+    print(file_lst[0])
     for i in range(0, len(file_lst), batch_sz):
         yield file_lst[i:min(i + batch_sz, len(file_lst))]    
 
@@ -174,9 +177,11 @@ if __name__ == '__main__':
     with open(Path(args.config), 'r') as f:
         experiment_info = yaml.safe_load(f)[args.experiment]
     if args.gpu_nodes is not None:
-        gpu_nodes = (args.gpu_nodes[0])
+        gpu_nodes = ','.join(map(str, args.gpu_nodes))
     else:
         gpu_nodes = str(experiment_info['gpu_node'])
+    
+    print("--------- Running relation: Using GPU: {} --------".format(gpu_nodes))
 
     # Define data/ouput folders
     path_root           = Path(experiment_info['root_dir'])
@@ -239,7 +244,7 @@ if __name__ == '__main__':
         preds = defaultdict(list)
         for txt_fn in batch:
             ann_fn = path_brat / (txt_fn.stem + ".ann")
-
+            print(ann_fn)
             if not ann_fn.is_file():
                 continue
             # TODO: The code below can be further simplified. All we need is sentence boundary, brat, and encoded text to create tsv
@@ -258,6 +263,7 @@ if __name__ == '__main__':
                 preds[pred_s[0]].append(pred_s)
             
         # save tsv file to path_tsv
+        print(preds)
         all_in_one(preds)
 
         # Run relation extraction
@@ -267,7 +273,8 @@ if __name__ == '__main__':
         
         
 
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(os.popen("nvidia-smi --query-gpu=memory.free,index --format=csv,nounits,noheader | sort -nr | head -4 | awk '{ print $NF }'").read()).replace('\n', ' ')
+        os.environ["CUDA_VISIBLE_DEVICES"] = gpu_nodes 
+        print(os.environ["CUDA_VISIBLE_DEVICES"])
         sys_args = {'--model_type': experiment_info['ner_model'].get('type'),
         '--data_format_mode': '0',
         '--classification_scheme': '2',

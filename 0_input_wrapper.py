@@ -16,7 +16,7 @@ def main(file, curr_dir, name):
 
     for _, row in input_file.iterrows():
 
-        with open(f'{curr_dir}/encoded_text/{row["NOTE_ENCNTR_KEY"]}.txt', 'w') as fw:
+        with open(f'{curr_dir}/encoded_text/{int(row["NOTE_ENCNTR_KEY"])}.txt', 'w') as fw:
             fw.write(str(row["note_text"]))
             #fw.write(row["TEXT"])
 

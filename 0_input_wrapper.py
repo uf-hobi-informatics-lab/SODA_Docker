@@ -11,12 +11,12 @@ def main(file, curr_dir, name):
     input_file = pd.read_csv(file, sep='\t', header=0)
     if not os.path.exists(f'{curr_dir}'):
         os.mkdir(f'{curr_dir}')
-    if not os.path.exists(f'{curr_dir}/encoded_text'):
-        os.mkdir(f'{curr_dir}/encoded_text')
+    if not os.path.exists(f'{curr_dir}/raw_data'):
+        os.mkdir(f'{curr_dir}/raw_data')
 
     for _, row in input_file.iterrows():
 
-        with open(f'{curr_dir}/encoded_text/{row["NOTE_ENCNTR_KEY"]}.txt', 'w') as fw:
+        with open(f'{curr_dir}/raw_data/{row["NOTE_ENCNTR_KEY"]}.txt', 'w') as fw:
             fw.write(str(row["note_text"]))
             #fw.write(row["TEXT"])
 
@@ -25,7 +25,7 @@ def main(file, curr_dir, name):
         config.write(f'{name}:\n')
         config.write(f'  gpu_node: 0\n')
         config.write(f'  root_dir: {curr_dir}\n')
-        config.write(f'  raw_data_dir: {curr_dir}\n')
+        config.write(f'  raw_data_dir: {curr_dir}/raw_data\n')
         config.write(f'  generate_bio: False\n')
         config.write(f'  encoded_text: True\n')
         config.write(f'  ner_model:\n')

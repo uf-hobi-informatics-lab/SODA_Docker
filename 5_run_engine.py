@@ -50,18 +50,17 @@ if __name__ == "__main__":
     # SDoH_type,SDoH_value,SDoH_concept,SDoH_attributes,note_id
     data = data.rename(columns={'SDoH_type': 'SDoH_standard_category',
                                 'SDoH_concept': 'SDoH_mention',
-                                'note_id': 'NOTE_ENCNTR_KEY',
                                 'SDoH_value': 'SDoH_raw_text'})
     if args.re_map is not None:
         rel_data = pd.read_csv(args.re_map)
         data = pd.concat([data, rel_data], ignore_index=True)
     data['SDoH_normalized'] = None
     if metadata:
-        data = data[['NOTE_ENCNTR_KEY', 'patient_id', 'SDoH_standard_category',
+        data = data[['note_id', 'patient_id', 'SDoH_standard_category',
                      'SDoH_mention','SDoH_raw_text','SDoH_normalized',
                      'SDoH_attributes','encounter_date']]
     else:
-        data = data[['NOTE_ENCNTR_KEY', 'SDoH_standard_category', 'SDoH_mention', ## change this
+        data = data[['note_id', 'SDoH_standard_category', 'SDoH_mention',
                      'SDoH_raw_text','SDoH_normalized', 'SDoH_attributes']]
     #categories = data['SDoH_standard_category'].unique()
     #data['SDoH_normalized']=None
@@ -94,6 +93,8 @@ if __name__ == "__main__":
         
     data['SDoH_normalized']=norm_values
     #norm_data = pd.concat([norm_data, current_data])
+    data = data.rename(columns={'note_id': 'NOTE_ENCNTR_KEY'})
+    data['NOTE_ENCNTR_KEY'] = data['NOTE_ENCNTR_KEY'].astype(int)
     print(data)
     data['SDoH_normalized'] = data['SDoH_normalized'].fillna(value='other')
     data.to_csv(args.output_file, index=False, quoting=csv.QUOTE_ALL)

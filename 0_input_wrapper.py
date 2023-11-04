@@ -15,8 +15,7 @@ def main(file, curr_dir, name):
         os.mkdir(f'{curr_dir}/raw_data')
 
     for _, row in input_file.iterrows():
-
-        with open(f'{curr_dir}/raw_data/{row["NOTE_ENCNTR_KEY"]}.txt', 'w') as fw:
+        with open(f'{curr_dir}/raw_data/{int(row["NOTE_ENCNTR_KEY"])}.txt', 'w') as fw:
             fw.write(str(row["note_text"]))
             #fw.write(row["TEXT"])
 

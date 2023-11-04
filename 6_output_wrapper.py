@@ -5,7 +5,6 @@ import json
 import pandas as pd
 import argparse
 import os, shutil, csv
-         }
 
 def main(file, structure, output):
     

@@ -5,12 +5,7 @@ import json
 import pandas as pd
 import argparse
 import os, shutil, csv
-
-#omop_cat = {"alcohol_use": 1234,
-#            "so on": 50_47}
-
-#omop_val = {"same as b": 4,
-#             }
+         }
 
 def main(file, structure, output):
     
@@ -26,6 +21,7 @@ def main(file, structure, output):
     #output_file["OMOP_category"] = omop_cats
     #output_file["OMOP_value"] = omop_vals
     output_file = output_file[['NOTE_ENCNTR_KEY', 'NOTE_KEY', 'CNTCT_NUM', 'SDoH_standard_category', 'SDoH_normalized']]#, 'OMOP_category', 'OMOP_value']]
+    output_file = output_file.drop_duplicates()
     output_file.to_csv(f'{output}/extracted_sdoh_data.tsv', index=False, sep='\t', quoting=csv.QUOTE_ALL)
 
     

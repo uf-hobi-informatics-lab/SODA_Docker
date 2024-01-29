@@ -526,7 +526,7 @@ class BatchProcessor(object):
         args = Namespace(**_params)
         tsv_neg = {k: list(set([(NEG_REL, sent_1.replace(self.relation_model_params['preprocess']['EN1_START'], self.negation_model_params['preprocess']['EN1_START']).replace(\
                                                          self.relation_model_params['preprocess']['EN1_END'], self.negation_model_params['preprocess']['EN1_END']), eid_1) \
-                                            for _, sent_1, _, _, _, eid_1, _ in v])) for k,v in self.tsv.items()}
+                                            for _, sent_1, _, ent_1, _, eid_1, _ in v if ent_1 == self.negation_model_params['preprocess']['entity_label']])) for k,v in self.tsv.items()}
         tsv = sum(list(tsv_neg.values()), [])
         preds = negation_classification(args, tsv=tsv)
         

@@ -133,6 +133,47 @@ sdoh_pipeline_docker:
     force_rewrite: True # remove old csv if True
     ouput_file: output.csv
 
+negation_inference:
+  dependency_tree:
+  - [brat_neg,tsv]
+  - [tsv,brat]
+  - [tsv,bio_init]
+  - [tsv,encoded_text]
+  - [bio_init, encoded_text]
+  - [bio_init, raw_text]
+  - [encoded_text, raw_text]
+  root_dir: /data/datasets/shared_data_2/pipeline_dev_test_regex
+  raw_data_dir: /data/datasets/dparedes/project/LungRADS_nodules/sample_notes_sc_sz/radiology_reports
+
+  sent_tokenizer:
+    _class: SentenceBoundaryDetection
+    params:
+      deid_pattern: \[\*\*|\*\*\]
+
+  negation_model:
+    _class:
+    preprocess:
+      entity_label: nodule
+      EN1_START: "[s]"
+      EN1_END: "[e]"
+      NEG_REL: not-negated
+    postprocess:
+      keep_cat: [negated]
+    params:
+      model_type: bert
+      new_model_dir: /home/jameshuang/Projects/NLP_annotation/fine_tuned_negation/mimiciii_bert-base-uncased_10e_128b/lr_1e-4_max_seq_length_256_batch_size_4/model
+      do_lower_case: True
+      eval_batch_size: 4
+      max_seq_length: 256
+      data_format_mode: 0
+      data_file_header: True
+      num_core: 16
+      non_relation_label: NonRel
+      classification_scheme: 1
+      do_predict: True
+      seed: 13
+      log_lvl: i
+      
 lungrads_pipeline:  # Generate output csv from raw text
   pipeline: lungrads
   dependency_tree:

@@ -476,7 +476,7 @@ class BatchProcessor(object):
 
         if write_output:
             (self._root_dir / 'brat_re').mkdir(parents=True, exist_ok=True)
-        
+        (self._root_dir / 'logs').mkdir(parents=True, exist_ok=True)
         _params = copy.deepcopy(self.relation_model_params['params'])
         _params.update({'device': self.device, 'data_dir': str(self._root_dir / 'tsv'),
                         'logger': TransformerLogger(logger_file=str(self._root_dir / 'logs' / f"re_{self.gpu_idx}.log"), logger_level=_params['log_lvl']).get_logger()
@@ -484,8 +484,11 @@ class BatchProcessor(object):
         
         args = Namespace(**_params)
         tsv = sum(list(self.tsv.values()), [])
-        preds = run_relation_extraction(args, tsv=tsv)
-        
+        if tsv:
+            preds = run_relation_extraction(args, tsv=tsv)
+        else:
+            preds = []
+
         if self.relation_model_params['params'].get('type_map', False):
             _type_maps = pickle.load(open(self.relation_model_params['params']['type_map'],'rb'))
             type_maps = lambda x,y: _type_maps[(x, y)]
@@ -515,7 +518,7 @@ class BatchProcessor(object):
 
         if write_output:
             (self._root_dir / 'brat_neg').mkdir(parents=True, exist_ok=True)
-
+        (self._root_dir / 'logs').mkdir(parents=True, exist_ok=True)
         _params = copy.deepcopy(self.negation_model_params['params'])
         _params.update({'device': self.device, 'data_dir': str(self._root_dir / 'tsv'),
                         'logger': TransformerLogger(logger_file=str(self._root_dir / 'logs' / f"neg_{self.gpu_idx}.log"), logger_level=_params['log_lvl']).get_logger()

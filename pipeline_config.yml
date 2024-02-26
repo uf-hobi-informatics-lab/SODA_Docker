@@ -32,6 +32,105 @@ lungrads_ner_test: # Generate bio from brat
     params:
       deid_pattern: \[\*\*|\*\*\]
 
+sdoh_pipeline:
+  pipeline: sdoh
+  dependency_tree:
+    - [csv_output, brat]
+    - [csv_output, brat_re]
+    - [csv_output, encoded_text]
+    - [brat_re,tsv]
+    - [tsv,brat]
+    - [tsv,bio_init]
+    - [tsv,encoded_text]
+    - [brat,bio_init]
+    - [brat,encoded_text]
+    - [bio_init, encoded_text]
+    - [bio_init, raw_text]
+    - [encoded_text, raw_text]
+  root_dir: /data2/datasets/jameshuang/SDoH/sankalp/data/
+  raw_data_dir: /data2/datasets/jameshuang/SDoH/sankalp/data/raw_text/
+
+  sent_tokenizer:
+    _class: SentenceBoundaryDetection
+    params:
+      deid_pattern: \[\*\*|\*\*\]
+
+  ner_model:
+    _class: Transformer
+    # _class: TransformerMRC
+    params:
+      model_type: bert
+      pretrained_model: /data/datasets/zehao/sdoh/model/SDOH_bert_final
+      do_lower_case: None
+      eval_batch_size: 8
+      max_seq_length: 512
+      data_has_offset_information: None
+      use_bio: False
+
+  relation_model:
+    _class:
+    preprocess:
+      CUTOFF: 1
+      EN1_START: "[s1]"
+      EN1_END: "[e1]"
+      EN2_START: "[s2]"
+      EN2_END: "[e2]"
+      NEG_REL: NonRel
+      valid_comb: # TODO: load this from type_map
+        - [Tobacco_use, Substance_use_status] 
+        - [Substance_use_status, Smoking_type]
+        - [Substance_use_status, Smoking_freq_ppd] 
+        - [Substance_use_status, Smoking_freq_py] 
+        - [Substance_use_status, Smoking_freq_qy] 
+        - [Substance_use_status, Smoking_freq_sy]
+        - [Substance_use_status, Smoking_freq_other] 
+        - [Alcohol_use, Substance_use_status]
+        - [Substance_use_status, Alcohol_freq] 
+        - [Substance_use_status, Alcohol_type] 
+        - [Substance_use_status, Alcohol_other] 
+        - [Drug_use, Substance_use_status]
+        - [Substance_use_status, Drug_freq] 
+        - [Substance_use_status, Drug_type]
+        - [Substance_use_status, Drug_other] 
+        - [Sex_act, Sdoh_status]
+        - [Sex_act, Partner] 
+        - [Sex_act, Protection] 
+        - [Sex_act, Sex_act_other] 
+        - [Occupation, Employment_status]
+        - [Occupation, Employment_location] 
+        - [Gender, Sdoh_status]
+        - [Social_cohesion, Social_method] 
+        - [Social_method, Sdoh_status]
+        - [Physical_act, Sdoh_status] 
+        - [Physical_act, Sdoh_freq] 
+        - [Living_supply, Sdoh_status] 
+        - [Abuse, Sdoh_status]
+        - [Transportation, Sdoh_status] 
+        - [Health_literacy, Sdoh_status]
+        - [Financial_constrain, Sdoh_status] 
+        - [Social_cohesion, Sdoh_status]
+        - [Social_cohesion, Sdoh_freq] 
+        - [Gender, Sdoh_status] 
+        - [Race, Sdoh_status] 
+        - [Ethnicity, Sdoh_status]
+        - [Living_Condition, Sdoh_status]
+    params:
+      model_type: bert
+      new_model_dir: /data/datasets/zehao/sdoh/relations_model/bert
+      do_lower_case: True
+      eval_batch_size: 4
+      max_seq_length: 512
+      data_format_mode: 0
+      data_file_header: True
+      num_core: 1
+      non_relation_label: NonRel
+      classification_mode: bin
+      log_lvl: w
+
+  csv_output_params:
+    force_rewrite: True # remove old csv if True
+    ouput_file: output.csv
+
 
 sdoh_pipeline_docker:
   pipeline: sdoh

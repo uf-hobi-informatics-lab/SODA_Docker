@@ -1,4 +1,4 @@
-lungrads_ner_training: # Generate bio from brat
+lungrads_ner_training: # Generate bio from raw_text + brat
   dependency_tree:
     - [bio, bio_init]
     - [bio, brat]
@@ -15,7 +15,7 @@ lungrads_ner_training: # Generate bio from brat
     params:
       deid_pattern: \[\*\*|\*\*\]
 
-lungrads_ner_test: # Generate bio from brat
+lungrads_ner_test: # Generate bio from raw_text + brat
   dependency_tree:
     - [bio, bio_init]
     - [bio, brat]
@@ -32,7 +32,7 @@ lungrads_ner_test: # Generate bio from brat
     params:
       deid_pattern: \[\*\*|\*\*\]
 
-sdoh_pipeline:
+sdoh_pipeline: # Generate csv output from rawtext
   pipeline: sdoh
   dependency_tree:
     - [csv_output, brat]
@@ -47,15 +47,15 @@ sdoh_pipeline:
     - [bio_init, encoded_text]
     - [bio_init, raw_text]
     - [encoded_text, raw_text]
-  root_dir: /data2/datasets/jameshuang/SDoH/sankalp/data/
-  raw_data_dir: /data2/datasets/jameshuang/SDoH/sankalp/data/raw_text/
+  root_dir: /data2/datasets/jameshuang/SDoH/sankalp/data/               # output directory
+  raw_data_dir: /data2/datasets/jameshuang/SDoH/sankalp/data/raw_text/  # raw text directory
 
-  sent_tokenizer:
+  sent_tokenizer:                                                       # tokenizer config
     _class: SentenceBoundaryDetection
     params:
       deid_pattern: \[\*\*|\*\*\]
 
-  ner_model:
+  ner_model:                                                            # ner model config
     _class: Transformer
     # _class: TransformerMRC
     params:
@@ -67,7 +67,7 @@ sdoh_pipeline:
       data_has_offset_information: None
       use_bio: False
 
-  relation_model:
+  relation_model:                                                       # rel model config
     _class:
     preprocess:
       CUTOFF: 1
@@ -127,7 +127,7 @@ sdoh_pipeline:
       classification_mode: bin
       log_lvl: w
 
-  csv_output_params:
+  csv_output_params:                                                  # csv_output config
     force_rewrite: True # remove old csv if True
     ouput_file: output.csv
 

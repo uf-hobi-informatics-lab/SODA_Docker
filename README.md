@@ -55,3 +55,7 @@ If you have a metadata file to map individual notes to patients, you can also in
 * `deid_pat_ID`: De-identified patient ID (usually associated to multiple notes.)
 * `note_type`: Origin of the note (e.g. letter, progress report)
 * `ENCNTR_EFF_DATE`: Date associated to the note.
+
+## Reference
+Please cite our paper:
+> Yu, Z., Peng, C., Yang, X., Dang, C., Adekkanattu, P., Gopal Patra, B., Peng, Y., Pathak, J., Wilson, D.L., Chang, C.-Y., Lo-Ciganic, W.-H., George, T.J., Hogan, W.R., Guo, Y., Bian, J., Wu, Y., 2024. Identifying social determinants of health from clinical narratives: A study of performance, documentation ratio, and potential bias. J. Biomed. Inform. 104642.![image](https://github.com/uf-hobi-informatics-lab/SODA_Docker/assets/99048338/1261672b-0253-462d-a0f6-bb4fb0d134d6)

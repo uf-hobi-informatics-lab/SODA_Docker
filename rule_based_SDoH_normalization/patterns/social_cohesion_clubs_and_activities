@@ -19,3 +19,8 @@ country club
 
 SOCIAL_RECLUSION_DICT:
 isolate(d|s|ing|)
+
+TEMPLATE_SOCIAL:
+active member of clubs or organizations
+attends club or organization meetings
+attends religious services

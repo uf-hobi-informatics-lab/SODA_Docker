@@ -16,6 +16,8 @@ from ClinicalTransformerClassification.src.batch_prediction import app as negati
 
 from rule_based_SDoH_normalization.run_engine import normalization as sdoh_output_normalization
 
+from reconcile_entity_and_relation_brat import apply_patch_processor as rebuild_brat_files
+
 MIMICIII_PATTERN = "\[\*\*|\*\*\]"
 import pandas as pd
 import numpy as np
@@ -27,25 +29,32 @@ from encode_text import preprocessing
 from collections import defaultdict
 from os.path import relpath
 from argparse import Namespace
+import cProfile
 
 def gen_adrd_output_df(df):
+
+    # Ensure that child_context is initialized if missing
+    if 'child_context' not in df.columns:
+        df['child_context'] = np.nan
 
     df['SDoH_type'] = np.nan
     df['SDoH_concept'] = np.nan
     df['SDoH_value'] = np.nan
     
     # group multiple SDoH_value
-    df = pd.concat([df.loc[~df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status'])],\
-                    df.loc[df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status'])].groupby(
-                        ['id', 'concept_cat', 'concept_value', 'child_concept_cat', 'relation'], dropna=False)['child_concept_value'].apply('|'.join).reset_index()])
-    
+    df = pd.concat([
+        df.loc[~df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status'])],
+        df.loc[df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status'])]
+          .groupby(
+              ['id','concept_cat','concept_value','child_concept_cat','relation','context','child_context'],
+              dropna=False, group_keys=False
+          )['child_concept_value'].apply('|'.join).reset_index()
+    ])
     # No child
     df.loc[df['child_concept_cat'].isnull(),'SDoH_type'] = df.loc[df['child_concept_cat'].isnull()]['concept_cat']
     df.loc[df['child_concept_cat'].isnull(),'SDoH_value'] = df.loc[df['child_concept_cat'].isnull()]['concept_value']
     
-    # label == substabce_use_status
-    # if df.loc[(df['concept_cat']=='Substance_use_status') & ~df['concept_value'].str.contains('smok|drug',case=False) & ~df['child_concept_cat'].str.contains('smok|drug', na=False,case=False)].shape[0]:
-    #     pprint(df)
+    # label == substance_use_status
     for k,v in zip(['smok','drug','alcoh'],['Tobacco_use', 'Drug_use', 'Alcohol_use']):
         df.loc[(df['concept_cat']=='Substance_use_status') & (df['concept_value'].str.contains(k,case=False) | df['child_concept_cat'].str.contains(k, na=False,case=False)),'SDoH_type'] = v
     df.loc[df['concept_cat']=='Substance_use_status','SDoH_value'] = df.loc[df['concept_cat']=='Substance_use_status']['concept_value']
@@ -55,28 +64,52 @@ def gen_adrd_output_df(df):
         df.loc[~df['concept_cat'].isin(['Substance_use_status', 'Sdoh_status']) & ~df['relation'].isnull()]['concept_cat']
     df.loc[~df['concept_cat'].isin(['Substance_use_status', 'Sdoh_status']) & ~df['relation'].isnull(),'SDoH_concept'] = \
         df.loc[~df['concept_cat'].isin(['Substance_use_status', 'Sdoh_status']) & ~df['relation'].isnull()]['concept_value']
-    _dicts = df.loc[df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status'])][['id', 'child_concept_value']].to_dict('records')
+    
+    _dicts = df.loc[df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status'])][['id', 'child_concept_value', 'child_context']].to_dict('records')
     for _dict in _dicts:
+        value_context = ''
         df.loc[df['id']==_dict['id'],'SDoH_value'] = _dict['child_concept_value']
-    df = df[['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept', 'relation', 'child_concept_cat', 'child_concept_value']]
+        
+        # Handle child_context population
+        if str(_dict['child_context']).__contains__('#'):
+            df.loc[df['id']==_dict['id'],'context'] = _dict['child_context']
+        else:
+            old_context = next(iter(df.loc[df['id']==_dict['id'], 'context']), '')
+            value_context = old_context.replace('##', '')
+            
+            child_value = _dict['child_concept_value']
+            try:
+                match = re.search(r"{}".format(child_value), r"{}".format(value_context))
+            except:
+                match = None
+                print(child_value, value_context)
+        
+            if match is not None:
+                value_context = value_context[0:int(match.start())] + "##" + value_context[int(match.start()):int(match.end())] + "##" + value_context[int(match.end()):-1]
+                df.loc[df['id']==_dict['id'],'context'] = value_context
+    
+    df = df[['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept', 'context', 'relation', 'child_concept_cat', 'child_concept_value']]
 
     # get attributes
-    _df = df.loc[df['relation'].isnull()][['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept']]  # separate roots without child (i.e., no relation) from ones that have
+    _df = df.loc[df['relation'].isnull()][['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept', 'context']]  # separate roots without child (i.e., no relation) from ones that have
     df = df.loc[~df['relation'].isnull()]
-    if len(df):
-        df.loc[~(df['child_concept_cat'].isnull()),'SDoH_attributes'] = df.loc[~(df['child_concept_cat'].isnull())][['child_concept_cat', 'child_concept_value']].apply(": ".join, axis=1)
-        df.loc[df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status']),'SDoH_attributes'] = np.nan # Don't create attribute if child_concept_value is now SDoH_value
-        # group attributes that have the same parent
-        df = df.drop(columns=['child_concept_cat', 'child_concept_value']).groupby(['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept', 'relation'], dropna=False)['SDoH_attributes'].apply(lambda x: ', '.join(x.dropna())).reset_index()
-        df.loc[df['SDoH_attributes'].str.contains(':'),'SDoH_attributes'] = '{' + df.loc[df['SDoH_attributes'].str.contains(':')]['SDoH_attributes'].astype(str) + '}'
-        df['SDoH_attributes'].replace('', np.nan, inplace=True)
-        df.loc[~(df['SDoH_attributes'].isnull()),'SDoH_attributes'] = df.loc[~(df['SDoH_attributes'].isnull())][['relation', 'SDoH_attributes']].apply(": ".join, axis=1)
-        # combine all the attributes for each root
-        df = df.drop(columns=['relation']).groupby(['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept'], dropna=False)['SDoH_attributes'].apply(lambda x: ', '.join(x.dropna())).reset_index()
-        df = pd.concat([_df, df]).drop(columns=['id'])
-        df['SDoH_attributes'].replace('', np.nan, inplace=True)
-    else:
-        df = _df.drop(columns=['id'])
+    df.loc[~(df['child_concept_cat'].isnull()),'SDoH_attributes'] = df.loc[~(df['child_concept_cat'].isnull())][['child_concept_cat', 'child_concept_value']].apply(": ".join, axis=1)
+    df.loc[df['child_concept_cat'].isin(['Substance_use_status', 'Sdoh_status']),'SDoH_attributes'] = np.nan # Don't create attribute if child_concept_value is now SDoH_value
+    # group attributes that have the same parent
+    df = (
+        df.drop(columns=['child_concept_cat', 'child_concept_value'])
+          .groupby(['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept', 'relation', 'context'], dropna=False)['SDoH_attributes']
+          .apply(lambda x: ', '.join([y for y in x.dropna().astype(str) if y != '']))
+          .reset_index()
+    )
+    df.loc[df['SDoH_attributes'].astype(str).str.contains(':'), 'SDoH_attributes'] = '{' + df.loc[df['SDoH_attributes'].astype(str).str.contains(':')]['SDoH_attributes'].astype(str) + '}'
+
+    df['SDoH_attributes'].replace('', np.nan, inplace=True)
+    df.loc[~(df['SDoH_attributes'].isnull()),'SDoH_attributes'] = df.loc[~(df['SDoH_attributes'].isnull())][['relation', 'SDoH_attributes']].apply(": ".join, axis=1)
+    # combine all the attributes for each root
+    df = df.drop(columns=['relation']).groupby(['id', 'SDoH_type', 'SDoH_value', 'SDoH_concept', 'context'], dropna=False)['SDoH_attributes'].apply(lambda x: ', '.join(x.dropna())).reset_index()
+    df = pd.concat([_df, df]).drop(columns=['id'])
+    df['SDoH_attributes'].replace('', np.nan, inplace=True)
     
     # corner cases (drug_type)
     for k,v in zip(['smok','drug','alcoh'],['Tobacco_use', 'Drug_use', 'Alcohol_use']):
@@ -97,7 +130,7 @@ class BatchProcessor(object):
 
     def __init__(self, root_dir=None, raw_data_dir=None, device=None, gpu_nodes=None, result=None, batch_sz=None, 
                  ner_model={}, relation_model={}, negation_model={}, unit_extraction_model={}, regex_params={}, csv_output_params = {},
-                 sent_tokenizer={}, dependency_tree=[], debug=True, pipeline=None, run_time_log=None):
+                 sent_tokenizer={}, dependency_tree=[], debug=True, context=True, pipeline=None, run_time_log=None):
 
         self.pipeline                   = pipeline
         self.device                     = device
@@ -121,6 +154,7 @@ class BatchProcessor(object):
         self.sent_tokenizer             = None
         self.csv_output                 = []
         self.debug                      = debug
+        self.context                    = context
         self.run_time_log               = run_time_log
         self.clear_cache()
 
@@ -271,6 +305,7 @@ class BatchProcessor(object):
         for file in batch_files:
             with open(file, "r", encoding='latin') as f:
                 txt = f.read()
+            txt = txt.replace("GÇó", "")
             txt = unicodedata.normalize("NFKD", ftfy.fix_text(txt)).strip()
             self.encoded_text[file.stem] = txt
             if write_output:
@@ -394,7 +429,8 @@ class BatchProcessor(object):
         args.batch_files            = batch_files
         args.preprocessed_text_dir  = self._root_dir / 'bio_init'
         args.progress_bar           = False     # This field is required
-        args.logger                 = TransformerNERLogger(self._root_dir / 'logs' / f"ner_{self.gpu_idx}.log", 'i').get_logger()
+        _params = copy.deepcopy(self.ner_model_params['params'])
+        args.logger                 = TransformerNERLogger(self._root_dir / 'logs' / f"ner_{self.gpu_idx}.log", 'w').get_logger()
 
         labeled_bio = run_ner(args, return_labeled_bio=True, sents=self.bio_init, raw_text=self.encoded_text) # TODO: don't use deepcopy if not necessary
         
@@ -766,7 +802,29 @@ class BatchProcessor(object):
                 if not self.brat[batch_file.stem]:
                     continue
                 
-                tup_entity, tup_relation = self.get_entities_tuples(batch_file, text_range=text_range, get_relation_text=True)         
+                tup_entity, tup_relation = self.get_entities_tuples(
+                    batch_file, text_range=text_range, get_relation_text=True
+                )
+                if self.context:
+                    marked = []
+                    for eid, cat, val, cont in tup_entity:
+                        if cont is not None and val in cont:
+                            cont = cont.replace(val, f'##{val}##', 1)
+                        marked.append((eid, cat, val, cont))
+
+                    tup_entity = marked
+                df_entity = pd.DataFrame(
+                    tup_entity,
+                    columns=['id', 'concept_cat', 'concept_value', 'context']
+                )
+
+                rebuild_brat_files(batch_file.stem, 
+                                   self._root_dir / 'brat', 
+                                   self._root_dir / 'brat_re', 
+                                   self._root_dir / 'encoded_text',
+                                   self._root_dir / 'brat', 
+                                   self._root_dir / 'brat_re'
+                                  )
 
                 df_entity = pd.DataFrame(tup_entity, columns =['id', 'concept_cat', 'concept_value', 'context'])
                 # if tup_relation:
@@ -791,13 +849,15 @@ class BatchProcessor(object):
                     df_out = df_entity[['parent_id', 'id', 'concept_cat', 'concept_value', 'context', 'child_concept_cat', 'child_concept_value', 'relation']]
 
                 df_out = df_out.loc[df_out['parent_id'].isnull()]
-                df_out.drop(columns=[x for x in df_out.columns if ('parent_' in x) or ('context' in x) or ('i_' in x)], inplace=True)
+                df_out.drop(columns=[x for x in df_out.columns if ('parent_' in x) or ('i_' in x)], inplace=True)
                 df_out = gen_adrd_output_df(df_out)
                 df_out['note_id'] = batch_file.stem
                 df_out_lst.append(df_out)
 
             df_all = pd.concat(df_out_lst, ignore_index=True)            
             df_all = sdoh_output_normalization(df_all)
+            if not self.context:
+                df_all.drop(columns=['context'], inplace=True)
         else:
             raise KeyError
 
@@ -846,11 +906,14 @@ class BatchProcessor(object):
                 self.clear_cache()
 
 
-def main(experiment_info):
+def sequential_process(experiment_info):
+    #pr = cProfile.Profile()
+    #pr.enable()
     
     pipeline = BatchProcessor(**experiment_info)
     pipeline.run()
-    
+    #pr.disable()
+    #pr.dump_stats(Path(experiment_info['root_dir']) / f'logs/ALBERT_brat_test.prof')
     
 def multiprocessing_wrapper(args, experiment_info):
     mp.set_start_method('spawn')
@@ -868,7 +931,7 @@ def multiprocessing_wrapper(args, experiment_info):
         experiment_lst.append(_experiment_info)
 
     with mp.Pool(N_gpu_nodes) as p:
-        p.map(main, experiment_lst)
+        p.map(sequential_process, experiment_lst)
 
 
 if __name__ == "__main__":
@@ -876,16 +939,20 @@ if __name__ == "__main__":
     parser.add_argument("--batch_sz", type=int, default=1e4, help="batch size")
     parser.add_argument("--config", type=str, required=True, help="configuration file")
     parser.add_argument("--experiment", type=str, required=True, help="experiement to run")
-    parser.add_argument("--gpu_nodes", nargs="+", default=[0], help="gpu_device_id")
+    parser.add_argument("--gpu_nodes", nargs="+", default=list(map(int, os.environ.get("CUDA_VISIBLE_DEVICES", "").split(","))), help="gpu_device_id")
     parser.add_argument("--result", type=str, default='csv_output', choices=OUTPUT_DIR, help="result to generate")
     parser.add_argument("--debug", action='store_true', help="store intermediate outputs")
     parser.add_argument("--raw_data_dir", type=str, default=None, help="raw text directory")
     parser.add_argument("--root_dir", type=str, default=None, help="output directory")
     parser.add_argument("--run_time_log", type=str, default=None, help="store run time")
+    parser.add_argument("--context", action='store_true', help="include text snipped from where info was extracted")
     
-    # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "lungrads_pipeline", "--result", "brat_re", "--batch_sz", "100", "--gpu_nodes", "0", "1", "--debug"]
-    # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "sdoh_pipeline", "--result", "csv_output", "--batch_sz", "100", "--gpu_nodes", "0", "--debug"]
-    # args = parser.parse_args(sys_args)
+    # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "lungrads_pipeline", "--result", "csv_output", "--batch_sz", "100", "--gpu_nodes", "0", "--debug"]
+    #sys_args = ["--config", "/SODA/config.yml", "--experiment", "docker_run", "--result", "csv_output"]
+    # , "--run_time_log", "run_time_log.txt"
+    # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "sdoh_ner_ADRD", "--result", "bio", "--batch_sz", "500", "--gpu_nodes", "0", "--debug"]
+    # sys_args = ["--config", "/home/jameshuang/Projects/pipeline_dev/pipeline_config.yml", "--experiment", "sdoh_ner_test", "--result", "bio", "--batch_sz", "500", "--gpu_nodes", "0", "--debug"]
+    #args = parser.parse_args(sys_args)
     args = parser.parse_args()
     
     # Load configuration
@@ -894,12 +961,12 @@ if __name__ == "__main__":
         experiment_info['result'] = args.result
     experiment_info['batch_sz'] = args.batch_sz
     experiment_info['debug'] = args.debug
+    experiment_info['context'] = args.context
     experiment_info['run_time_log'] = args.run_time_log
     
     # Overwrite directories for docker user
     if args.raw_data_dir is not None: experiment_info['raw_data_dir'] = args.raw_data_dir
     if args.root_dir is not None: experiment_info['root_dir'] = args.root_dir
-
     # Allow multiplle gpus
     if len(args.gpu_nodes) > 1:
         multiprocessing_wrapper(args, experiment_info)        
@@ -907,8 +974,17 @@ if __name__ == "__main__":
         # Main function
         os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
         os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu_nodes[0])
-        experiment_info['gpu_nodes'] = (0, 1)
-        experiment_info['device'] = torch.device("cuda")
-        main(experiment_info)
+
+        if args.gpu_nodes[0] == -1:
+            os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+            experiment_info['device'] = torch.device("cpu")
+        else:
+            os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_nodes[0])
+            experiment_info['gpu_nodes'] = (0, 1)
+            experiment_info['device'] = torch.device("cuda")
+            
+        print("==========START==========")
+        sequential_process(experiment_info)
+        print("===========END===========")
     
     

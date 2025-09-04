@@ -1,5 +1,4 @@
 AFFIRMATIONS_OF_ABUSE_DICT:
-forced[\s]*(sex(ual|)|)[\s]*(activity|)
 abusive[\s][\w]*
 yes
 heav(y|ily)
@@ -32,3 +31,10 @@ grand[\w]*
 uncle
 aunt
 cousin(s|)
+
+TEMPLATE_MENTIONS_ABUSE:
+((((fear |)of cur|)rent |)or |)ex[\s]*(-|)[\s]*partner
+emotionally abused
+physically abused
+sexually abused
+forced[\s]*(sex(ual|)|)[\s]*(activity|)

@@ -41,10 +41,10 @@ def normalization(output_df):
     if metadata:
         data = data[['note_id', 'person_id', 'SDoH_standard_category',
                      'SDoH_mention','SDoH_raw_text','SDoH_normalized',
-                     'SDoH_attributes','encounter_date']]
+                     'SDoH_attributes','encounter_date', 'context']]
     else:
-        data = data[['note_id', 'SDoH_standard_category', 'SDoH_mention',
-                     'SDoH_raw_text','SDoH_normalized', 'SDoH_attributes']]
+        data = data#[['note_id', 'SDoH_standard_category', 'SDoH_mention',
+                    # 'SDoH_raw_text','SDoH_normalized', 'SDoH_attributes', 'context']]
     #categories = data['SDoH_standard_category'].unique()
     #data['SDoH_normalized']=None
     #print(categories)
@@ -59,7 +59,8 @@ def normalization(output_df):
     for idx, text in enumerate(data['SDoH_raw_text']):
         try:
             text = rgx.sub('', str(text).lower())
-            results=my_engine.extract(text, data['SDoH_standard_category'][idx])
+            text = text.strip('#')
+            results=my_engine.extract(text.lower(), data['SDoH_standard_category'][idx])
             
             if results != []:
                 results = teExtract(results)
@@ -67,12 +68,12 @@ def normalization(output_df):
             else:
                 norm_values.append('other')
         except:
-            print(f"Skipping over {data['SDoH_standard_category'][idx]}. No rules found.")
+            #print(f"Skipping over {data['SDoH_standard_category'][idx]}. No rules found.")
             norm_values.append('')
         
     data['SDoH_normalized']=norm_values
     #norm_data = pd.concat([norm_data, current_data])
-    print(data)
+    #print(data)
     data['SDoH_normalized'] = data['SDoH_normalized'].fillna(value='__other__')
     
     return data

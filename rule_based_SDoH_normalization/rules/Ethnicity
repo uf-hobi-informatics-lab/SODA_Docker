@@ -1,5 +1,6 @@
 ETHNICITY:
 
+expression="not hispanic or latino",val="not_hispanic"
+expression="%NEGATION_DICT([\s]*|-)(%HISPANIC_TERMS_DICT|)",val="not_hispanic"
 expression="%HISPANIC_TERMS_DICT",val="hispanic"
-expression="%NEGATION_DICT([\s]|-|)(%HISPANIC_TERMS_DICT|)",val="not_hispanic"
 expression="%NOT_ON_FILE_DICT",val="other"
